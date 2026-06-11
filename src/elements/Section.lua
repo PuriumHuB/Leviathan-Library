@@ -16,12 +16,6 @@ function Element:New(Config)
         DescTextSize = Config.DescTextSize or 16,
         Box = Config.Box or false,
         BoxBorder = Config.BoxBorder or false,
-        
-        -- [TÍNH NĂNG MỚI ĐƯỢC THÊM VÀO ĐÂY]
-        OutlineColor = Config.OutlineColor, 
-        OutlineGradient = Config.OutlineGradient,
-        CustomTransparency = Config.CustomTransparency,
-        
         FontWeight = Config.FontWeight or Enum.FontWeight.SemiBold,
         DescFontWeight = Config.DescFontWeight or Enum.FontWeight.Medium,
         TextTransparency = Config.TextTransparency or 0.05,
@@ -145,27 +139,20 @@ function Element:New(Config)
         ClipsDescendants = true,
         AutomaticSize = "Y",
         ThemeTag = {
-            ImageTransparency = Section.CustomTransparency and nil or (Section.Box and "SectionBoxBackgroundTransparency" or nil),
+            ImageTransparency = Section.Box and "SectionBoxBackgroundTransparency" or nil,
             ImageColor3 = "SectionBoxBackground",
         },
-        ImageTransparency = Section.CustomTransparency or (not Section.Box and 1 or nil),
+        ImageTransparency = not Section.Box and 1 or nil,
     }, {
         Creator.NewRoundFrame(Config.Window.ElementConfig.UICorner, Config.Window.NewElements and "Glass-1" or "SquircleOutline", {
             Size = UDim2.new(1,0,1,0),
             --ImageTransparency = .75,
-            
-            ImageColor3 = Section.OutlineColor or Color3.new(1, 1, 1),
-            ThemeTag = (not Section.OutlineColor) and {
+            ThemeTag = {
                 ImageTransparency = "SectionBoxBorderTransparency",
                 ImageColor3 = "SectionBoxBorder",
-            } or nil,
-            
+            },
             Visible = Section.Box and Section.BoxBorder,
             Name = "Outline",
-        }, {
-            Section.OutlineGradient and New("UIGradient", {
-                Color = Section.OutlineGradient,
-            }) or nil
         }),
         New("TextButton", {
             Size = UDim2.new(1,0,0,Section.Expandable and 0 or (not DescFrame and Section.HeaderSize or 0)),
