@@ -1,262 +1,341 @@
--- ╔══════════════════════════════════════════════════╗
--- ║        Leviathan UI — Main (Init.lua)           ║
--- ║  Drop-in replacement for WindUI.               ║
--- ║  All WindUI APIs are preserved 1:1.            ║
--- ╚══════════════════════════════════════════════════╝
-
-local LeviathanUI = {
-	Window             = nil,
-	Theme              = nil,
-	Creator            = require("./modules/Creator"),
+local WindUI = {
+	Window = nil,
+	Theme = nil,
+	Creator = require("./modules/Creator"),
 	LocalizationModule = require("./modules/Localization"),
 	NotificationModule = require("./components/Notification"),
-	Themes             = nil,
-	Transparent        = false,
+	Themes = nil,
+	Transparent = false,
 
-	TransparencyValue  = 0.15,
-	UIScale            = 1,
+	TransparencyValue = 0.15,
 
-	ConfigManager      = nil,
-	Version            = "1.0.0",
+	UIScale = 1,
 
-	Services           = require("./utils/services/Init"),
+	ConfigManager = nil,
+	Version = "1.0.0",
+
+	Services = require("./utils/services/Init"),
 
 	OnThemeChangeFunction = nil,
 
-	cloneref    = nil,
-	UIScaleObj  = nil,
+	cloneref = nil,
+	UIScaleObj = nil,
+
 	CreateWindow = nil,
+
 	CurrentInput = nil,
 }
 
-local cloneref = (cloneref or clonereference or function(i) return i end)
-LeviathanUI.cloneref = cloneref
+local cloneref = (cloneref or clonereference or function(instance)
+	return instance
+end)
 
-local HttpService      = cloneref(game:GetService("HttpService"))
-local Players          = cloneref(game:GetService("Players"))
-local CoreGui          = cloneref(game:GetService("CoreGui"))
-local RunService       = cloneref(game:GetService("RunService"))
+WindUI.cloneref = cloneref
+
+local HttpService = cloneref(game:GetService("HttpService"))
+local Players = cloneref(game:GetService("Players"))
+local CoreGui = cloneref(game:GetService("CoreGui"))
+local RunService = cloneref(game:GetService("RunService"))
 local UserInputService = cloneref(game:GetService("UserInputService"))
 
-function LeviathanUI.GenerateGUID()
+function WindUI.GenerateGUID()
 	return HttpService:GenerateGUID(false)
 end
 
-local CurInput = LeviathanUI.GenerateGUID()
+local CurInput = WindUI.GenerateGUID()
 
-UserInputService.InputBegan:Connect(function(Input)
+UserInputService.InputBegan:Connect(function(Input, GameProcessed)
+	--[[if GameProcessed then
+		return
+	end]]
+
 	task.defer(function()
-		if Input.UserInputType == Enum.UserInputType.MouseButton1
+		if
+			Input.UserInputType == Enum.UserInputType.MouseButton1
 			or Input.UserInputType == Enum.UserInputType.Touch
 		then
-			if LeviathanUI.CurrentInput and LeviathanUI.CurrentInput ~= CurInput then return end
-			LeviathanUI.CurrentInput = CurInput
+			if WindUI.CurrentInput and WindUI.CurrentInput ~= CurInput then
+				return
+			end
+
+			WindUI.CurrentInput = CurInput
+			--print(CurInput)
+			--WindUI.InputStartedOnUI = false
 		end
 	end)
 end)
-UserInputService.InputEnded:Connect(function(Input)
-	if Input.UserInputType == Enum.UserInputType.MouseButton1
-		or Input.UserInputType == Enum.UserInputType.Touch
-	then
-		if LeviathanUI.CurrentInput and LeviathanUI.CurrentInput ~= CurInput then return end
-		LeviathanUI.CurrentInput = nil
+UserInputService.InputEnded:Connect(function(Input, GameProcessed)
+	if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+		if WindUI.CurrentInput and WindUI.CurrentInput ~= CurInput then
+			return
+		end
+
+		WindUI.CurrentInput = nil
 	end
 end)
 
 local LocalPlayer = Players.LocalPlayer or nil
 
-local KeySystem = require("./components/KeySystem")
-local Creator   = LeviathanUI.Creator
-local New       = Creator.New
-local Acrylic   = require("./utils/Acrylic/Init")
-
-local ProtectGui = protectgui or (syn and syn.protect_gui) or function() end
-local GUIParent  = gethui and gethui()
-	or (CoreGui or LocalPlayer:WaitForChild("PlayerGui"))
-
-local UIScaleObj = New("UIScale", { Scale = LeviathanUI.UIScale })
-LeviathanUI.UIScaleObj = UIScaleObj
-
--- ── ScreenGuis ───────────────────────────────────────────────
-LeviathanUI.ScreenGui = New("ScreenGui", {
-	Name           = "LeviathanUI",
-	Parent         = GUIParent,
-	IgnoreGuiInset = true,
-	ScreenInsets   = "None",
-	DisplayOrder   = -99999,
-}, {
-	New("Folder", { Name = "Window"   }),
-	New("Folder", { Name = "KeySystem"}),
-	New("Folder", { Name = "Popups"   }),
-	New("Folder", { Name = "ToolTips" }),
-})
-
-LeviathanUI.NotificationGui = New("ScreenGui", {
-	Name           = "LeviathanUI/Notifications",
-	Parent         = GUIParent,
-	IgnoreGuiInset = true,
-})
-LeviathanUI.DropdownGui = New("ScreenGui", {
-	Name           = "LeviathanUI/Dropdowns",
-	Parent         = GUIParent,
-	IgnoreGuiInset = true,
-})
-LeviathanUI.TooltipGui = New("ScreenGui", {
-	Name           = "LeviathanUI/Tooltips",
-	Parent         = GUIParent,
-	IgnoreGuiInset = true,
-})
-
-ProtectGui(LeviathanUI.ScreenGui)
-ProtectGui(LeviathanUI.NotificationGui)
-ProtectGui(LeviathanUI.DropdownGui)
-ProtectGui(LeviathanUI.TooltipGui)
-
-Creator.Init(LeviathanUI)
-
--- ── Notifications ────────────────────────────────────────────
-local Holder = LeviathanUI.NotificationModule.Init(LeviathanUI.NotificationGui)
-
-function LeviathanUI:Notify(Config)
-	Config.Holder = Holder.Frame
-	Config.Window = LeviathanUI.Window
-	return LeviathanUI.NotificationModule.New(Config)
+local Package = HttpService:JSONDecode(require("../build/package"))
+if Package then
+	WindUI.Version = Package.version
 end
 
-function LeviathanUI:SetNotificationLower(Val)
+local KeySystem = require("./components/KeySystem")
+
+local Creator = WindUI.Creator
+
+local New = Creator.New
+
+--local Tween = Creator.Tween
+--local ServicesModule = WindUI.Services
+
+local Acrylic = require("./utils/Acrylic/Init")
+
+local ProtectGui = protectgui or (syn and syn.protect_gui) or function() end
+
+local GUIParent = gethui and gethui() or (CoreGui or LocalPlayer:WaitForChild("PlayerGui"))
+
+local UIScaleObj = New("UIScale", {
+	Scale = WindUI.UIScale,
+})
+
+WindUI.UIScaleObj = UIScaleObj
+
+WindUI.ScreenGui = New("ScreenGui", {
+	Name = "WindUI",
+	Parent = GUIParent,
+	IgnoreGuiInset = true,
+	ScreenInsets = "None",
+	DisplayOrder = -99999,
+}, {
+
+	New("Folder", {
+		Name = "Window",
+	}),
+	-- New("Folder", {
+	--     Name = "Notifications"
+	-- }),
+	-- New("Folder", {
+	--     Name = "Dropdowns"
+	-- }),
+	New("Folder", {
+		Name = "KeySystem",
+	}),
+	New("Folder", {
+		Name = "Popups",
+	}),
+	New("Folder", {
+		Name = "ToolTips",
+	}),
+})
+
+WindUI.NotificationGui = New("ScreenGui", {
+	Name = "WindUI/Notifications",
+	Parent = GUIParent,
+	IgnoreGuiInset = true,
+})
+WindUI.DropdownGui = New("ScreenGui", {
+	Name = "WindUI/Dropdowns",
+	Parent = GUIParent,
+	IgnoreGuiInset = true,
+})
+WindUI.TooltipGui = New("ScreenGui", {
+	Name = "WindUI/Tooltips",
+	Parent = GUIParent,
+	IgnoreGuiInset = true,
+})
+ProtectGui(WindUI.ScreenGui)
+ProtectGui(WindUI.NotificationGui)
+ProtectGui(WindUI.DropdownGui)
+ProtectGui(WindUI.TooltipGui)
+
+Creator.Init(WindUI)
+
+function WindUI:SetParent(parent)
+	if WindUI.ScreenGui then
+		WindUI.ScreenGui.Parent = parent
+	end
+	if WindUI.NotificationGui then
+		WindUI.NotificationGui.Parent = parent
+	end
+	if WindUI.DropdownGui then
+		WindUI.DropdownGui.Parent = parent
+	end
+	if WindUI.TooltipGui then
+		WindUI.TooltipGui.Parent = parent
+	end
+end
+math.clamp(WindUI.TransparencyValue, 0, 1)
+
+local Holder = WindUI.NotificationModule.Init(WindUI.NotificationGui)
+
+function WindUI:Notify(Config)
+	Config.Holder = Holder.Frame
+	Config.Window = WindUI.Window
+	--Config.WindUI = WindUI
+	return WindUI.NotificationModule.New(Config)
+end
+
+function WindUI:SetNotificationLower(Val)
 	Holder.SetLower(Val)
 end
 
--- ── Theme ─────────────────────────────────────────────────────
-function LeviathanUI:SetFont(FontId)
+function WindUI:SetFont(FontId)
 	Creator.UpdateFont(FontId)
 end
 
-function LeviathanUI:OnThemeChange(func)
-	LeviathanUI.OnThemeChangeFunction = func
+function WindUI:OnThemeChange(func)
+	WindUI.OnThemeChangeFunction = func
 end
 
-function LeviathanUI:AddTheme(LTheme)
-	LeviathanUI.Themes[LTheme.Name] = LTheme
+function WindUI:AddTheme(LTheme)
+	WindUI.Themes[LTheme.Name] = LTheme
 	return LTheme
 end
 
-function LeviathanUI:SetTheme(Value)
-	if LeviathanUI.Themes[Value] then
-		LeviathanUI.Theme = LeviathanUI.Themes[Value]
-		Creator.SetTheme(LeviathanUI.Themes[Value])
-		if LeviathanUI.OnThemeChangeFunction then
-			LeviathanUI.OnThemeChangeFunction(Value)
+function WindUI:SetTheme(Value)
+	if WindUI.Themes[Value] then
+		WindUI.Theme = WindUI.Themes[Value]
+		Creator.SetTheme(WindUI.Themes[Value])
+
+		if WindUI.OnThemeChangeFunction then
+			WindUI.OnThemeChangeFunction(Value)
 		end
-		return LeviathanUI.Themes[Value]
+
+		return WindUI.Themes[Value]
 	end
 	return nil
 end
 
-function LeviathanUI:GetThemes()       return LeviathanUI.Themes         end
-function LeviathanUI:GetCurrentTheme() return LeviathanUI.Theme.Name     end
-function LeviathanUI:GetTransparency() return LeviathanUI.Transparent or false end
-function LeviathanUI:GetWindowSize()   return LeviathanUI.Window.UIElements.Main.Size end
-
--- ── Localisation ─────────────────────────────────────────────
-function LeviathanUI:Localization(LocalizationConfig)
-	return LeviathanUI.LocalizationModule:New(LocalizationConfig, Creator)
+function WindUI:GetThemes()
+	return WindUI.Themes
+end
+function WindUI:GetCurrentTheme()
+	return WindUI.Theme.Name
+end
+function WindUI:GetTransparency()
+	return WindUI.Transparent or false
+end
+function WindUI:GetWindowSize()
+	return WindUI.Window.UIElements.Main.Size
+end
+function WindUI:Localization(LocalizationConfig)
+	return WindUI.LocalizationModule:New(LocalizationConfig, Creator)
 end
 
-function LeviathanUI:SetLanguage(Value)
+function WindUI:SetLanguage(Value)
 	if Creator.Localization then
 		return Creator.SetLanguage(Value)
 	end
 	return false
 end
 
--- ── Acrylic ──────────────────────────────────────────────────
-function LeviathanUI:ToggleAcrylic(Value)
-	if LeviathanUI.Window and LeviathanUI.Window.AcrylicPaint
-		and LeviathanUI.Window.AcrylicPaint.Model
-	then
-		LeviathanUI.Window.Acrylic = Value
-		LeviathanUI.Window.AcrylicPaint.Model.Transparency = Value and 0.98 or 1
-		if Value then Acrylic.Enable() else Acrylic.Disable() end
-	end
-end
-
--- ── Gradient ─────────────────────────────────────────────────
-function LeviathanUI:Gradient(stops, props)
-	local colorSeq, transSeq = {}, {}
-	for posStr, stop in next, stops do
-		local pos = tonumber(posStr)
-		if pos then
-			pos = math.clamp(pos / 100, 0, 1)
-			local c = stop.Color
-			if typeof(c) == "string" and string.sub(c,1,1) == "#" then c = Color3.fromHex(c) end
-			table.insert(colorSeq, ColorSequenceKeypoint.new(pos, c))
-			table.insert(transSeq, NumberSequenceKeypoint.new(pos, stop.Transparency or 0))
+function WindUI:ToggleAcrylic(Value)
+	if WindUI.Window and WindUI.Window.AcrylicPaint and WindUI.Window.AcrylicPaint.Model then
+		WindUI.Window.Acrylic = Value
+		WindUI.Window.AcrylicPaint.Model.Transparency = Value and 0.98 or 1
+		if Value then
+			Acrylic.Enable()
+		else
+			Acrylic.Disable()
 		end
 	end
-	table.sort(colorSeq, function(a,b) return a.Time < b.Time end)
-	table.sort(transSeq, function(a,b) return a.Time < b.Time end)
-	if #colorSeq < 2 then
-		table.insert(colorSeq, ColorSequenceKeypoint.new(1, colorSeq[1].Value))
-		table.insert(transSeq, NumberSequenceKeypoint.new(1, transSeq[1].Value))
+end
+
+function WindUI:Gradient(stops, props)
+	local colorSequence = {}
+	local transparencySequence = {}
+
+	for posStr, stop in next, stops do
+		local position = tonumber(posStr)
+		if position then
+			position = math.clamp(position / 100, 0, 1)
+
+			local color = stop.Color
+			if typeof(color) == "string" and string.sub(color, 1, 1) == "#" then
+				color = Color3.fromHex(color)
+			end
+
+			local transparency = stop.Transparency or 0
+
+			table.insert(colorSequence, ColorSequenceKeypoint.new(position, color))
+			table.insert(transparencySequence, NumberSequenceKeypoint.new(position, transparency))
+		end
 	end
-	local data = {
-		Color        = ColorSequence.new(colorSeq),
-		Transparency = NumberSequence.new(transSeq),
+
+	table.sort(colorSequence, function(a, b)
+		return a.Time < b.Time
+	end)
+	table.sort(transparencySequence, function(a, b)
+		return a.Time < b.Time
+	end)
+
+	if #colorSequence < 2 then
+		table.insert(colorSequence, ColorSequenceKeypoint.new(1, colorSequence[1].Value))
+		table.insert(transparencySequence, NumberSequenceKeypoint.new(1, transparencySequence[1].Value))
+	end
+
+	local gradientData = {
+		Color = ColorSequence.new(colorSequence),
+		Transparency = NumberSequence.new(transparencySequence),
 	}
-	if props then for k,v in pairs(props) do data[k] = v end end
-	return data
+
+	if props then
+		for k, v in pairs(props) do
+			gradientData[k] = v
+		end
+	end
+
+	return gradientData
 end
 
--- ── Popup ────────────────────────────────────────────────────
-function LeviathanUI:Popup(PopupConfig)
-	PopupConfig.WindUI = LeviathanUI
-	return require("./components/popup/Init").new(
-		PopupConfig,
-		LeviathanUI.ScreenGui.Popups
-	)
+function WindUI:Popup(PopupConfig)
+	PopupConfig.WindUI = WindUI
+	return require("./components/popup/Init").new(PopupConfig, WindUI.ScreenGui.Popups)
 end
 
--- ── Parent ───────────────────────────────────────────────────
-function LeviathanUI:SetParent(parent)
-	if LeviathanUI.ScreenGui      then LeviathanUI.ScreenGui.Parent      = parent end
-	if LeviathanUI.NotificationGui then LeviathanUI.NotificationGui.Parent = parent end
-	if LeviathanUI.DropdownGui     then LeviathanUI.DropdownGui.Parent     = parent end
-	if LeviathanUI.TooltipGui      then LeviathanUI.TooltipGui.Parent      = parent end
-end
+WindUI.Themes = require("./themes/Init")(WindUI, Creator)
 
--- ── Boot themes ──────────────────────────────────────────────
-LeviathanUI.Themes  = require("./themes/Init")(LeviathanUI, Creator)
-Creator.Themes      = LeviathanUI.Themes
+Creator.Themes = WindUI.Themes
 
-LeviathanUI:SetTheme("Dark")
-LeviathanUI:SetLanguage(Creator.Language)
+WindUI:SetTheme("Dark")
+WindUI:SetLanguage(Creator.Language)
 
--- ── CreateWindow ─────────────────────────────────────────────
-function LeviathanUI:CreateWindow(Config)
+function WindUI:CreateWindow(Config)
 	local CreateWindow = require("./components/window/Init")
 
 	if not RunService:IsStudio() and writefile then
-		if not isfolder("LeviathanUI") then makefolder("LeviathanUI") end
-		if Config.Folder then makefolder(Config.Folder)
-		else makefolder(Config.Title) end
+		if not isfolder("WindUI") then
+			makefolder("WindUI")
+		end
+		if Config.Folder then
+			makefolder(Config.Folder)
+		else
+			makefolder(Config.Title)
+		end
 	end
 
-	Config.WindUI = LeviathanUI
-	Config.Window = LeviathanUI.Window
-	Config.Parent = LeviathanUI.ScreenGui.Window
+	Config.WindUI = WindUI
+	Config.Window = WindUI.Window
+	Config.Parent = WindUI.ScreenGui.Window
 
-	if LeviathanUI.Window then
-		warn("[ LeviathanUI ] Cannot create more than one window.")
+	if WindUI.Window then
+		warn("You cannot create more than one window")
 		return
 	end
 
 	local CanLoadWindow = true
 
-	local Theme = LeviathanUI.Themes[Config.Theme or "Dark"]
+	local Theme = WindUI.Themes[Config.Theme or "Dark"]
+
+	--WindUI.Theme = Theme
 	Creator.SetTheme(Theme)
 
-	local hwid     = gethwid or function() return Players.LocalPlayer.UserId end
+	local hwid = gethwid or function()
+		return Players.LocalPlayer.UserId
+	end
+
 	local Filename = hwid()
 
 	if Config.KeySystem then
@@ -273,58 +352,88 @@ function LeviathanUI:CreateWindow(Config)
 		if Config.KeySystem.KeyValidator then
 			if Config.KeySystem.SaveKey and isfile(keyPath) then
 				local savedKey = readfile(keyPath)
-				CanLoadWindow  = Config.KeySystem.KeyValidator(savedKey)
-				if not CanLoadWindow then loadKeysystem() end
+				local isValid = Config.KeySystem.KeyValidator(savedKey)
+
+				if isValid then
+					CanLoadWindow = true
+				else
+					loadKeysystem()
+				end
 			else
 				loadKeysystem()
 			end
 		elseif not Config.KeySystem.API then
 			if Config.KeySystem.SaveKey and isfile(keyPath) then
 				local savedKey = readfile(keyPath)
-				local isKey    = (type(Config.KeySystem.Key) == "table")
-					and table.find(Config.KeySystem.Key, savedKey)
-					or  tostring(Config.KeySystem.Key) == tostring(savedKey)
-				CanLoadWindow = isKey
-				if not isKey then loadKeysystem() end
+				local isKey = (type(Config.KeySystem.Key) == "table") and table.find(Config.KeySystem.Key, savedKey)
+					or tostring(Config.KeySystem.Key) == tostring(savedKey)
+
+				if isKey then
+					CanLoadWindow = true
+				else
+					loadKeysystem()
+				end
 			else
 				loadKeysystem()
 			end
 		else
 			if isfile(keyPath) then
-				local fileKey   = readfile(keyPath)
+				local fileKey = readfile(keyPath)
 				local isSuccess = false
+
 				for _, i in next, Config.KeySystem.API do
-					local serviceData = LeviathanUI.Services[i.Type]
+					local serviceData = WindUI.Services[i.Type]
 					if serviceData then
 						local args = {}
 						for _, argName in next, serviceData.Args do
 							table.insert(args, i[argName])
 						end
+
 						local service = serviceData.New(table.unpack(args))
-						if service.Verify(fileKey) then
+						local success = service.Verify(fileKey)
+						if success then
 							isSuccess = true
 							break
 						end
 					end
 				end
+
 				CanLoadWindow = isSuccess
-				if not isSuccess then loadKeysystem() end
+				if not isSuccess then
+					loadKeysystem()
+				end
 			else
 				loadKeysystem()
 			end
 		end
 
-		repeat task.wait() until CanLoadWindow
+		repeat
+			task.wait()
+		until CanLoadWindow
 	end
 
 	local Window = CreateWindow(Config)
 
-	LeviathanUI.Transparent = Config.Transparent
-	LeviathanUI.Window      = Window
+	WindUI.Transparent = Config.Transparent
+	WindUI.Window = Window
 
-	if Config.Acrylic then Acrylic.init() end
+	if Config.Acrylic then
+		Acrylic.init()
+	end
+
+	-- function Window:ToggleTransparency(Value)
+	--     WindUI.Transparent = Value
+	--     WindUI.Window.Transparent = Value
+
+	--     Window.UIElements.Main.Background.BackgroundTransparency = Value and WindUI.TransparencyValue or 0
+	--     Window.UIElements.Main.Background.ImageLabel.ImageTransparency = Value and WindUI.TransparencyValue or 0
+	--     Window.UIElements.Main.Gradient.UIGradient.Transparency = NumberSequence.new{
+	--         NumberSequenceKeypoint.new(0, 1),
+	--         NumberSequenceKeypoint.new(1, Value and 0.85 or 0.7),
+	--     }
+	-- end
 
 	return Window
 end
 
-return LeviathanUI
+return WindUI

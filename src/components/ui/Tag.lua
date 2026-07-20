@@ -1,181 +1,167 @@
--- ╔══════════════════════════════════════════════════╗
--- ║   Leviathan UI — Tag                            ║
--- ║   Variants · icon support · removable           ║
--- ╚══════════════════════════════════════════════════╝
 local Tag = {}
 
 local Creator = require("../../modules/Creator")
-local New     = Creator.New
-local Tween   = Creator.Tween
+local New = Creator.New
+local Tween = Creator.Tween
 
---[[
-  Variants:
-    "Default"  — theme-tinted subtle pill
-    "Solid"    — filled with accent colour
-    "Outline"  — transparent bg, coloured border
-    "Success"  / "Warning" / "Error" / "Info"
-      — semantic status pills
-]]
+function Tag:New(TagConfig, Parent)
+	local TagModule = {
+		Title = TagConfig.Title or "Tag",
+		Icon = TagConfig.Icon,
+		Color = TagConfig.Color or Color3.fromHex("#315dff"),
+		Radius = TagConfig.Radius or 999,
+		Border = TagConfig.Border or false,
 
-local VariantColor = {
-	Default = nil,
-	Solid   = Creator.Colors.Accent,
-	Outline = Creator.Colors.Accent,
-	Success = Creator.Colors.Success,
-	Warning = Creator.Colors.Warning,
-	Error   = Creator.Colors.Error,
-	Info    = Creator.Colors.Info,
-}
+		TagFrame = nil,
+		Height = 26,
+		Padding = 10,
+		TextSize = 14,
+		IconSize = 16,
+	}
 
-local R   = 999   -- pill shape
-local PH  = 10    -- padding horizontal
-local PV  = 4     -- padding vertical
-local H   = 24    -- height
+	local TagIcon
+	if TagModule.Icon then
+		TagIcon = Creator.Image(TagModule.Icon, TagModule.Icon, 0, TagConfig.Window, "Tag", false)
 
-function Tag.New(Config, Parent, OnRemove)
-	local label    = Config.Label   or Config.Text or "Tag"
-	local variant  = Config.Variant or "Default"
-	local icon     = Config.Icon
-	local removable = Config.Removable == true
+		TagIcon.Size = UDim2.new(0, TagModule.IconSize, 0, TagModule.IconSize)
+		TagIcon.ImageLabel.ImageColor3 = typeof(TagModule.Color) == "Color3"
+				and Creator.GetTextColorForHSB(TagModule.Color)
+			or typeof(TagModule.Color) == "string"
+				and (Creator.GetTextColorForHSB(Creator.GetThemeProperty(TagModule.Color, Creator.Theme)))
+	end
 
-	local hexColor = VariantColor[variant]
-	local solidColor = hexColor and Color3.fromHex(hexColor) or nil
+	local TagTitle = New("TextLabel", {
+		BackgroundTransparency = 1,
+		AutomaticSize = "XY",
+		TextSize = TagModule.TextSize,
+		FontFace = Font.new(Creator.Font, Enum.FontWeight.SemiBold),
+		Text = TagModule.Title,
+		TextColor3 = typeof(TagModule.Color) == "Color3" and Creator.GetTextColorForHSB(TagModule.Color) or typeof(
+			TagModule.Color
+		) == "string" and (Creator.GetTextColorForHSB(Creator.GetThemeProperty(TagModule.Color, Creator.Theme))),
+	})
 
-	-- ── Optional icon ─────────────────────────────────────────
-	local IconFrame
-	if icon and icon ~= "" then
-		local ic = Creator.Icon(icon)
-		if ic then
-			IconFrame = New("ImageLabel", {
-				Size            = UDim2.new(0, 12, 0, 12),
-				BackgroundTransparency = 1,
-				Image           = ic[1],
-				ImageRectSize   = ic[2].ImageRectSize,
-				ImageRectOffset = ic[2].ImageRectPosition,
-				ImageColor3     = solidColor or nil,
-				ThemeTag        = not solidColor and { ImageColor3 = "Text" } or nil,
-				ImageTransparency = not solidColor and 0.3 or 0,
-			})
+	local BackgroundGradient
+
+	if typeof(TagModule.Color) == "table" then
+		BackgroundGradient = New("UIGradient")
+		for key, value in next, TagModule.Color do
+			BackgroundGradient[key] = value
+		end
+
+		TagTitle.TextColor3 = Creator.GetTextColorForHSB(Creator.GetAverageColor(BackgroundGradient))
+		if TagIcon then
+			TagIcon.ImageLabel.ImageColor3 = Creator.GetTextColorForHSB(Creator.GetAverageColor(BackgroundGradient))
 		end
 	end
 
-	-- ── Remove ×  button ──────────────────────────────────────
-	local RemoveBtn
-	if removable then
-		local xIcon = Creator.Icon("x")
-		RemoveBtn = New("ImageButton", {
-			Size            = UDim2.new(0, 10, 0, 10),
-			BackgroundTransparency = 1,
-			Image           = xIcon and xIcon[1] or "",
-			ImageRectSize   = xIcon and xIcon[2].ImageRectSize   or Vector2.new(0,0),
-			ImageRectOffset = xIcon and xIcon[2].ImageRectPosition or Vector2.new(0,0),
-			ImageColor3     = solidColor or nil,
-			ThemeTag        = not solidColor and { ImageColor3 = "Text" } or nil,
-			ImageTransparency = 0.35,
-			Name            = "Remove",
-		})
-	end
-
-	-- ── Text label ────────────────────────────────────────────
-	local TextLabel = New("TextLabel", {
-		BackgroundTransparency = 1,
-		AutomaticSize          = "X",
-		Size                   = UDim2.new(0, 0, 1, 0),
-		TextXAlignment         = "Center",
-		TextSize               = Creator.Type.Caption,
-		FontFace               = Font.new(Creator.Font, Enum.FontWeight.SemiBold),
-		Text                   = label,
-		ImageColor3            = solidColor or nil,
-		ThemeTag               = not solidColor and { TextColor3 = "Text" } or nil,
-		TextColor3             = variant == "Solid" and Color3.new(1, 1, 1)
-			or solidColor or nil,
-		TextTransparency       = 0.1,
-		Name                   = "Label",
-	})
-
-	-- ── Background ────────────────────────────────────────────
-	local BgTransp
-	if variant == "Solid" then
-		BgTransp = 0
-	elseif variant == "Outline" then
-		BgTransp = 1
-	else
-		BgTransp = 0.85
-	end
-
-	local Bg = Creator.NewRoundFrame(R, "Squircle", {
-		Size              = UDim2.new(0, 0, 0, H),
-		AutomaticSize     = "X",
-		ImageTransparency = BgTransp,
-		ImageColor3       = solidColor,
-		ThemeTag          = (not solidColor) and { ImageColor3 = "ElementBackground" } or nil,
-		Parent            = Parent,
-		Name              = "Tag",
+	local TagFrame = Creator.NewRoundFrame(TagModule.Radius, "Squircle", {
+		AutomaticSize = "X",
+		Size = UDim2.new(0, 0, 0, TagModule.Height),
+		Parent = Parent,
+		ImageColor3 = typeof(TagModule.Color) == "Color3" and TagModule.Color
+			or typeof(TagModule.Color) == "table" and Color3.new(1, 1, 1)
+			or nil,
+		ThemeTag = typeof(TagModule.Color) == "string" and {
+			ImageColor3 = TagModule.Color,
+		},
 	}, {
-		-- Outline ring for Outline variant
-		variant == "Outline" and Creator.NewRoundFrame(R, "SquircleOutline", {
-			Size              = UDim2.new(1, 1, 1, 1),
-			AnchorPoint       = Vector2.new(0.5, 0.5),
-			Position          = UDim2.new(0.5, 0, 0.5, 0),
-			ImageColor3       = solidColor,
-			ImageTransparency = 0.45,
-		}) or nil,
-		-- Content row
+		BackgroundGradient,
+		Creator.NewRoundFrame(TagModule.Radius + 1, "SquircleGlass", {
+			Size = UDim2.new(1, 1, 1, 1),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, 0),
+			ThemeTag = {
+				ImageColor3 = "White",
+			},
+			ImageTransparency = 0.75,
+		}),
 		New("Frame", {
+			Size = UDim2.new(0, 0, 1, 0),
+			AutomaticSize = "X",
+			Name = "Content",
 			BackgroundTransparency = 1,
-			Size                   = UDim2.new(1, 0, 1, 0),
-			AutomaticSize          = "X",
 		}, {
-			IconFrame,
-			TextLabel,
-			RemoveBtn,
-			New("UIListLayout", {
-				FillDirection      = "Horizontal",
-				VerticalAlignment  = "Center",
-				HorizontalAlignment = "Center",
-				Padding            = UDim.new(0, 5),
-			}),
+			TagIcon,
+			TagTitle,
 			New("UIPadding", {
-				PaddingLeft  = UDim.new(0, PH),
-				PaddingRight = UDim.new(0, PH),
-				PaddingTop   = UDim.new(0, PV),
-				PaddingBottom = UDim.new(0, PV),
+				PaddingLeft = UDim.new(0, TagModule.Padding),
+				PaddingRight = UDim.new(0, TagModule.Padding),
+			}),
+			New("UIListLayout", {
+				FillDirection = "Horizontal",
+				VerticalAlignment = "Center",
+				Padding = UDim.new(0, TagModule.Padding / 1.5),
 			}),
 		}),
 	})
 
-	-- ── Remove animation ──────────────────────────────────────
-	local TagAPI = {}
+	function TagModule:SetTitle(text)
+		TagModule.Title = text
+		TagTitle.Text = text
 
-	function TagAPI:Remove()
-		Tween(Bg, Creator.Anim.Normal, {
-			Size = UDim2.new(0, 0, 0, 0),
-			ImageTransparency = 1,
-		}, Enum.EasingStyle.Quint, Enum.EasingDirection.Out):Play()
-		task.delay(Creator.Anim.Normal + 0.02, function()
-			Bg:Destroy()
-		end)
-		if OnRemove then Creator.SafeCallback(OnRemove, label) end
+		return TagModule
 	end
 
-	function TagAPI:SetLabel(text)
-		TextLabel.Text = text
+	function TagModule:SetColor(color)
+		TagModule.Color = color
+		if typeof(color) == "table" then
+			local avgColor = Creator.GetAverageColor(color)
+			Tween(TagTitle, 0.06, { TextColor3 = Creator.GetTextColorForHSB(avgColor) }):Play()
+			local gradient = TagFrame:FindFirstChildOfClass("UIGradient") or New("UIGradient", { Parent = TagFrame })
+			for k, v in next, color do
+				gradient[k] = v
+			end
+			Tween(TagFrame, 0.06, { ImageColor3 = Color3.new(1, 1, 1) }):Play()
+		else
+			if BackgroundGradient then
+				BackgroundGradient:Destroy()
+			end
+			Tween(TagTitle, 0.06, { TextColor3 = Creator.GetTextColorForHSB(color) }):Play()
+			if TagIcon then
+				Tween(TagIcon.ImageLabel, 0.06, { ImageColor3 = Creator.GetTextColorForHSB(color) }):Play()
+			end
+			Tween(TagFrame, 0.06, { ImageColor3 = color }):Play()
+		end
+
+		return TagModule
 	end
 
-	if RemoveBtn then
-		RemoveBtn.MouseEnter:Connect(function()
-			Tween(RemoveBtn, Creator.Anim.Fast, { ImageTransparency = 0.05 }):Play()
-		end)
-		RemoveBtn.MouseLeave:Connect(function()
-			Tween(RemoveBtn, Creator.Anim.Fast, { ImageTransparency = 0.35 }):Play()
-		end)
-		Creator.AddSignal(RemoveBtn.MouseButton1Click, function()
-			TagAPI:Remove()
-		end)
+	function TagModule:SetIcon(icon)
+		TagModule.Icon = icon
+
+		if icon then
+			TagIcon = Creator.Image(icon, icon, 0, TagConfig.Window, "Tag", false)
+
+			TagIcon.Size = UDim2.new(0, TagModule.IconSize, 0, TagModule.IconSize)
+			TagIcon.Parent = TagFrame
+
+			if typeof(TagModule.Color) == "Color3" then
+				TagIcon.ImageLabel.ImageColor3 = Creator.GetTextColorForHSB(TagModule.Color)
+			elseif typeof(TagModule.Color) == "table" then
+				TagIcon.ImageLabel.ImageColor3 = Creator.GetTextColorForHSB(Creator.GetAverageColor(BackgroundGradient))
+			end
+		else
+			if TagIcon then
+				TagIcon:Destroy()
+				TagIcon = nil
+			end
+		end
+		return TagModule
 	end
 
-	Bg._API = TagAPI
-	return Bg, TagAPI
+	function TagModule:Destroy()
+		TagFrame:Destroy()
+		return TagModule
+	end
+
+	Creator:OnThemeChange(function(NewTheme, OldTheme)
+		TagTitle.TextColor3 = Creator.GetTextColorForHSB(Creator.GetThemeProperty(TagModule.Color, Creator.Theme))
+		TagIcon.ImageLabel.ImageColor3 =
+			Creator.GetTextColorForHSB(Creator.GetThemeProperty(TagModule.Color, Creator.Theme))
+	end)
+
+	return TagModule
 end
 
 return Tag

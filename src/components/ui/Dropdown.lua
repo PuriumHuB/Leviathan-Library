@@ -1,467 +1,682 @@
--- ╔══════════════════════════════════════════════════╗
--- ║   Leviathan UI — Dropdown                       ║
--- ║   Search · smooth scroll · selected indicator   ║
--- ╚══════════════════════════════════════════════════╝
-local Dropdown = {}
+local DropdownMenu = {}
+
+local cloneref = (cloneref or clonereference or function(instance)
+	return instance
+end)
+
+local UserInputService = cloneref(game:GetService("UserInputService"))
+local Mouse = cloneref(game:GetService("Players")).LocalPlayer:GetMouse()
+local Camera = cloneref(game:GetService("Workspace")).CurrentCamera
+
+local CurrentCamera = workspace.CurrentCamera
+
+local CreateInput = require("./Input").New
 
 local Creator = require("../../modules/Creator")
-local New     = Creator.New
-local Tween   = Creator.Tween
+local New = Creator.New
+local Tween = Creator.Tween
 
-local cloneref         = (cloneref or clonereference or function(i) return i end)
-local UserInputService = cloneref(game:GetService("UserInputService"))
+local TabBackgroundTransparency = 0.67
 
-local R     = 12
-local ItemH = 34
-local MaxH  = 180
-local Gap   = 6
+function DropdownMenu.New(Config, Dropdown, Element, Type)
+	local DropdownModule = {}
 
-function Dropdown.New(Options, Default, Multi, Placeholder, AllowEmpty, Parent, Callback, OpenOnTop, Window, Config)
-	Options     = Options     or {}
-	Placeholder = Placeholder or "Select..."
-	Multi       = Multi       == true
-
-	local DropdownData = {
-		Options  = Options,
-		Value    = Multi and {} or nil,
-		Opened   = false,
-		Disabled = false,
-	}
-
-	-- normalize Default
-	if Default then
-		if Multi then
-			if type(Default) == "table" then
-				for _, v in ipairs(Default) do DropdownData.Value[v] = true end
-			else
-				DropdownData.Value[Default] = true
-			end
-		else
-			DropdownData.Value = Default
-		end
+	if not Dropdown.Callback then
+		Type = "Menu"
 	end
 
-	-- ── Helper: label for current value ─────────────────────────
-	local function GetLabel()
-		if Multi then
-			local parts = {}
-			for k, v in pairs(DropdownData.Value) do
-				if v then table.insert(parts, tostring(k)) end
-			end
-			if #parts == 0 then return Placeholder end
-			table.sort(parts)
-			return table.concat(parts, ", ")
-		else
-			return DropdownData.Value ~= nil and tostring(DropdownData.Value) or Placeholder
-		end
-	end
-
-	-- ── Chevron icon ─────────────────────────────────────────────
-	local chevron   = Creator.Icon("chevron-down")
-	local ChevLabel = New("ImageLabel", {
-		Size            = UDim2.new(0, 14, 0, 14),
-		BackgroundTransparency = 1,
-		Image           = chevron and chevron[1] or "",
-		ImageRectSize   = chevron and chevron[2].ImageRectSize   or Vector2.new(0,0),
-		ImageRectOffset = chevron and chevron[2].ImageRectPosition or Vector2.new(0,0),
-		ThemeTag        = { ImageColor3 = "Icon" },
-		ImageTransparency = 0.45,
-		Name            = "Chevron",
+	Dropdown.UIElements.UIListLayout = New("UIListLayout", {
+		Padding = UDim.new(0, Element.MenuPadding / 1.5),
+		FillDirection = "Vertical",
+		HorizontalAlignment = "Center",
 	})
 
-	-- ── Selected text ────────────────────────────────────────────
-	local ValueLabel = New("TextLabel", {
-		BackgroundTransparency = 1,
-		Size                   = UDim2.new(1, -34, 1, 0),
-		TextXAlignment         = "Left",
-		ThemeTag               = { TextColor3 = "Text" },
-		TextTransparency       = DropdownData.Value ~= nil and 0.15 or 0.5,
-		TextSize               = Creator.Type.BodyLG,
-		FontFace               = Font.new(Creator.Font, Enum.FontWeight.Medium),
-		TextTruncate           = Enum.TextTruncate.AtEnd,
-		Text                   = GetLabel(),
-		Name                   = "Value",
-	})
-
-	-- ── Main header button ───────────────────────────────────────
-	local HeaderFrame = Creator.NewRoundFrame(R, "Squircle", {
-		Size              = UDim2.new(1, 0, 0, 38),
-		ImageTransparency = 0.84,
-		ThemeTag          = { ImageColor3 = "ElementBackground" },
-		Name              = "Header",
-	}, {
-		Creator.NewRoundFrame(R, "SquircleOutline", {
-			Size              = UDim2.new(1, 1, 1, 1),
-			AnchorPoint       = Vector2.new(0.5, 0.5),
-			Position          = UDim2.new(0.5, 0, 0.5, 0),
-			ThemeTag          = { ImageColor3 = "Outline" },
-			ImageTransparency = 0.88,
-			Name              = "Outline",
-		}),
-		New("TextButton", {
-			Size                   = UDim2.new(1, 0, 1, 0),
-			BackgroundTransparency = 1,
-			Text                   = "",
-			Name                   = "HitBox",
-		}, {
-			ValueLabel,
-			ChevLabel,
-			New("UIListLayout", {
-				FillDirection       = "Horizontal",
-				VerticalAlignment   = "Center",
-				HorizontalAlignment = "Right",
-				SortOrder           = "LayoutOrder",
-				Padding             = UDim.new(0, 6),
-			}),
-			New("UIPadding", {
-				PaddingLeft  = UDim.new(0, 12),
-				PaddingRight = UDim.new(0, 10),
-			}),
-		}),
-	})
-
-	-- ── Search box (inside popup) ────────────────────────────────
-	local SearchBox = New("TextBox", {
-		Size                   = UDim2.new(1, 0, 0, 32),
-		BackgroundTransparency = 1,
-		PlaceholderText        = "Search...",
-		Text                   = "",
-		TextXAlignment         = "Left",
-		ThemeTag               = { TextColor3 = "Text", PlaceholderColor3 = "SubText" },
-		TextTransparency       = 0.15,
-		TextSize               = Creator.Type.BodyMD,
-		FontFace               = Font.new(Creator.Font, Enum.FontWeight.Regular),
-		ClearTextOnFocus       = false,
-		Name                   = "Search",
+	Dropdown.UIElements.Menu = Creator.NewRoundFrame(Element.MenuCorner, "Squircle", {
+		ThemeTag = {
+			ImageColor3 = "DropdownBackground",
+		},
+		ImageTransparency = 1, -- 0.05
+		Size = UDim2.new(1, 0, 1, 0),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, 0, 0, 0),
 	}, {
 		New("UIPadding", {
-			PaddingLeft  = UDim.new(0, 10),
-			PaddingRight = UDim.new(0, 10),
+			PaddingTop = UDim.new(0, Element.MenuPadding),
+			PaddingLeft = UDim.new(0, Element.MenuPadding),
+			PaddingRight = UDim.new(0, Element.MenuPadding),
+			PaddingBottom = UDim.new(0, Element.MenuPadding),
 		}),
-		Creator.NewRoundFrame(R, "Squircle", {
-			Size              = UDim2.new(1, 0, 1, 0),
-			ZIndex            = -1,
-			ThemeTag          = { ImageColor3 = "ElementBackground" },
-			ImageTransparency = 0.78,
-		}),
-	})
-
-	-- ── Item list ────────────────────────────────────────────────
-	local ItemList = New("ScrollingFrame", {
-		Size                       = UDim2.new(1, 0, 1, -38),
-		BackgroundTransparency     = 1,
-		CanvasSize                 = UDim2.new(0, 0, 0, 0),
-		AutomaticCanvasSize        = "Y",
-		ScrollBarThickness         = 3,
-		ScrollBarImageColor3       = Color3.new(1, 1, 1),
-		ScrollBarImageTransparency = 0.7,
-		ScrollingDirection         = "Y",
-		Name                       = "List",
-	}, {
 		New("UIListLayout", {
-			Padding   = UDim.new(0, 2),
-			SortOrder = "LayoutOrder",
-		}),
-		New("UIPadding", {
-			PaddingLeft   = UDim.new(0, 6),
-			PaddingRight  = UDim.new(0, 6),
-			PaddingTop    = UDim.new(0, 4),
-			PaddingBottom = UDim.new(0, 4),
-		}),
-	})
-
-	-- ── Popup container ──────────────────────────────────────────
-	local PopupFrame = Creator.NewRoundFrame(R, "Squircle", {
-		Size              = UDim2.new(1, 0, 0, 0),
-		Position          = UDim2.new(0, 0, 1, Gap),
-		ThemeTag          = { ImageColor3 = "ElementBackground" },
-		ImageTransparency = 0.06,
-		ClipsDescendants  = false,
-		Visible           = false,
-		ZIndex            = 99,
-		Name              = "Popup",
-	}, {
-		Creator.NewRoundFrame(R, "SquircleOutline", {
-			Size              = UDim2.new(1, 1, 1, 1),
-			AnchorPoint       = Vector2.new(0.5, 0.5),
-			Position          = UDim2.new(0.5, 0, 0.5, 0),
-			ThemeTag          = { ImageColor3 = "Outline" },
-			ImageTransparency = 0.82,
+			FillDirection = "Vertical",
+			Padding = UDim.new(0, Element.MenuPadding),
 		}),
 		New("Frame", {
-			Size                   = UDim2.new(1, 0, 1, 0),
 			BackgroundTransparency = 1,
-			Name                   = "Inner",
-			ClipsDescendants       = true,
+			Size = UDim2.new(1, 0, 1, Dropdown.SearchBarEnabled and -Element.MenuPadding - Element.SearchBarHeight),
+			--Name = "CanvasGroup",
+			ClipsDescendants = true,
+			LayoutOrder = 999,
+			Name = "Frame",
 		}, {
-			SearchBox,
-			ItemList,
-			New("UIListLayout", {
-				FillDirection = "Vertical",
-				Padding       = UDim.new(0, 4),
+			New("UICorner", {
+				CornerRadius = UDim.new(0, Element.MenuCorner - Element.MenuPadding),
 			}),
-			New("UIPadding", {
-				PaddingTop    = UDim.new(0, 6),
-				PaddingBottom = UDim.new(0, 6),
+			New("ScrollingFrame", {
+				Size = UDim2.new(1, 0, 1, 0),
+				ScrollBarThickness = 0,
+				ScrollingDirection = "Y",
+				AutomaticCanvasSize = "Y",
+				CanvasSize = UDim2.new(0, 0, 0, 0),
+				BackgroundTransparency = 1,
+				ScrollBarImageTransparency = 1,
+			}, {
+				Dropdown.UIElements.UIListLayout,
 			}),
 		}),
 	})
 
-	local DropdownContainer = New("Frame", {
+	Dropdown.UIElements.MenuCanvas = New("Frame", {
+		Size = UDim2.new(0, Dropdown.MenuWidth, 0, 300),
 		BackgroundTransparency = 1,
-		Size                   = UDim2.new(1, 0, 0, 38),
-		AutomaticSize          = "None",
-		ClipsDescendants       = false,
-		Parent                 = Parent,
-		Name                   = "Dropdown",
+		Position = UDim2.new(-10, 0, -10, 0),
+		Visible = false,
+		Active = false,
+		--GroupTransparency = 1, -- 0
+		Parent = Config.WindUI.DropdownGui,
+		AnchorPoint = Vector2.new(1, 0),
 	}, {
-		HeaderFrame,
-		PopupFrame,
+		Dropdown.UIElements.Menu,
+		New("UISizeConstraint", {
+			MinSize = Vector2.new(170, 0),
+			MaxSize = Vector2.new(300, 400),
+		}),
 	})
 
-	-- ── Sync value label ─────────────────────────────────────────
-	local function SyncLabel()
-		local lbl = GetLabel()
-		ValueLabel.Text             = lbl
-		ValueLabel.TextTransparency = lbl == Placeholder and 0.5 or 0.15
+	local function RecalculateCanvasSize()
+		Dropdown.UIElements.Menu.Frame.ScrollingFrame.CanvasSize =
+			UDim2.fromOffset(0, Dropdown.UIElements.UIListLayout.AbsoluteContentSize.Y)
 	end
 
-	-- ── Build item row ───────────────────────────────────────────
-	local ItemFrames = {}
+	local function RecalculateListSize()
+		local MaxHeight = Config.WindUI.DropdownGui.AbsoluteSize.Y
 
-	local function BuildItems(filter)
-		-- destroy old
-		for _, f in pairs(ItemFrames) do f:Destroy() end
-		ItemFrames = {}
+		local ContentY = Dropdown.UIElements.UIListLayout.AbsoluteContentSize.Y / Config.UIScale
+		local SearchBarOffset = Dropdown.SearchBarEnabled and (Element.SearchBarHeight + (Element.MenuPadding * 3))
+			or (Element.MenuPadding * 2)
+		local TotalY = ContentY + SearchBarOffset
 
-		for i, option in ipairs(DropdownData.Options) do
-			local label   = tostring(option)
-			local lower   = label:lower()
-			local flt     = filter and filter:lower() or ""
-			if flt ~= "" and not lower:find(flt, 1, true) then continue end
+		if TotalY > MaxHeight then
+			Dropdown.UIElements.MenuCanvas.Size =
+				UDim2.fromOffset(Dropdown.UIElements.MenuCanvas.AbsoluteSize.X, MaxHeight)
+		else
+			Dropdown.UIElements.MenuCanvas.Size =
+				UDim2.fromOffset(Dropdown.UIElements.MenuCanvas.AbsoluteSize.X, TotalY)
+		end
+	end
 
-			-- is selected?
-			local function IsSelected()
-				if Multi then return DropdownData.Value[option] == true
-				else return DropdownData.Value == option end
+	function UpdatePosition()
+		local button = Dropdown.UIElements.Dropdown or Dropdown.DropdownFrame.UIElements.Main
+		local menu = Dropdown.UIElements.MenuCanvas
+
+		local availableSpaceBelow = Camera.ViewportSize.Y
+			- (button.AbsolutePosition.Y + button.AbsoluteSize.Y)
+			- Element.MenuPadding
+			- 54
+		local requiredSpace = menu.AbsoluteSize.Y + Element.MenuPadding
+
+		local offset = -54 -- topbar offset
+		if availableSpaceBelow < requiredSpace then
+			offset = requiredSpace - availableSpaceBelow - 54
+		end
+
+		menu.Position = UDim2.new(
+			0,
+			button.AbsolutePosition.X + button.AbsoluteSize.X,
+			0,
+			button.AbsolutePosition.Y + button.AbsoluteSize.Y - offset + (Element.MenuPadding * 2)
+		)
+	end
+
+	local SearchLabel
+
+	function DropdownModule:Display()
+		local Values = Dropdown.Values
+		local Str = ""
+
+		if Dropdown.Multi then
+			local selected = {}
+			if typeof(Dropdown.Value) == "table" then
+				for _, item in ipairs(Dropdown.Value) do
+					local title = typeof(item) == "table" and item.Title or item
+					selected[title] = true
+				end
 			end
 
-			local checkIcon = Creator.Icon("check")
-			local CheckMark = New("ImageLabel", {
-				Size            = UDim2.new(0, 13, 0, 13),
-				BackgroundTransparency = 1,
-				Image           = checkIcon and checkIcon[1] or "",
-				ImageRectSize   = checkIcon and checkIcon[2].ImageRectSize   or Vector2.new(0,0),
-				ImageRectOffset = checkIcon and checkIcon[2].ImageRectPosition or Vector2.new(0,0),
-				ThemeTag        = { ImageColor3 = "Toggle" },
-				ImageTransparency = IsSelected() and 0 or 1,
-				Name            = "Check",
-				LayoutOrder     = 999,
-			})
+			for _, value in ipairs(Values) do
+				local title = typeof(value) == "table" and value.Title or value
+				if selected[title] then
+					Str = Str .. title .. ", "
+				end
+			end
 
-			local ItemLabel = New("TextLabel", {
-				BackgroundTransparency = 1,
-				Size                   = UDim2.new(1, -26, 1, 0),
-				TextXAlignment         = "Left",
-				ThemeTag               = { TextColor3 = "Text" },
-				TextTransparency       = IsSelected() and 0.05 or 0.25,
-				TextSize               = Creator.Type.BodyMD,
-				FontFace               = Font.new(Creator.Font,
-					IsSelected() and Enum.FontWeight.SemiBold or Enum.FontWeight.Medium),
-				Text                   = label,
-				TextTruncate           = Enum.TextTruncate.AtEnd,
-			})
+			if #Str > 0 then
+				Str = Str:sub(1, #Str - 2)
+			end
+		else
+			Str = typeof(Dropdown.Value) == "table" and (Dropdown.Value.Title or Dropdown.Value[1])
+				or Dropdown.Value
+				or ""
+		end
 
-			local ItemBg = Creator.NewRoundFrame(R - 4, "Squircle", {
-				Size              = UDim2.new(1, 0, 0, ItemH),
-				ThemeTag          = { ImageColor3 = "ElementBackground" },
-				ImageTransparency = IsSelected() and 0.72 or 1,
-				Name              = "Item_" .. i,
-			}, {
-				New("TextButton", {
-					Size                   = UDim2.new(1, 0, 1, 0),
-					BackgroundTransparency = 1,
-					Text                   = "",
-					Name                   = "Hit",
-				}, {
-					ItemLabel,
-					CheckMark,
-					New("UIListLayout", {
-						FillDirection       = "Horizontal",
-						VerticalAlignment   = "Center",
-						HorizontalAlignment = "Left",
-						Padding             = UDim.new(0, 8),
-					}),
-					New("UIPadding", {
-						PaddingLeft  = UDim.new(0, 10),
-						PaddingRight = UDim.new(0, 8),
-					}),
-				}),
-			})
+		if Dropdown.UIElements.Dropdown then
+			Dropdown.UIElements.Dropdown.Frame.Frame.TextLabel.Text = (Str == "" and "--" or Str)
+		end
+	end
 
-			-- hover
-			ItemBg.Hit.MouseEnter:Connect(function()
-				Tween(ItemBg, Creator.Anim.Fast, {
-					ImageTransparency = IsSelected() and 0.60 or 0.82,
-				}):Play()
+	local function Callback(customCallback)
+		DropdownModule:Display()
+		if Dropdown.Locked then
+			return
+		end
+
+		if Dropdown.Callback then
+			task.spawn(function()
+				if Dropdown.Locked then
+					return
+				end
+				Creator.SafeCallback(Dropdown.Callback, Dropdown.Value)
 			end)
-			ItemBg.Hit.MouseLeave:Connect(function()
-				Tween(ItemBg, Creator.Anim.Fast, {
-					ImageTransparency = IsSelected() and 0.72 or 1,
-				}):Play()
+		else
+			task.spawn(function()
+				if Dropdown.Locked then
+					return
+				end
+				Creator.SafeCallback(customCallback)
 			end)
+		end
+	end
 
-			-- click
-			Creator.AddSignal(ItemBg.Hit.MouseButton1Click, function()
-				if DropdownData.Disabled then return end
-				if Multi then
-					DropdownData.Value[option] = not DropdownData.Value[option]
-					local sel = DropdownData.Value[option]
-					Tween(CheckMark, Creator.Anim.Fast, { ImageTransparency = sel and 0 or 1 }):Play()
-					Tween(ItemBg,    Creator.Anim.Fast, { ImageTransparency = sel and 0.72 or 1 }):Play()
-					ItemLabel.TextTransparency = sel and 0.05 or 0.25
-					ItemLabel.FontFace = Font.new(Creator.Font,
-						sel and Enum.FontWeight.SemiBold or Enum.FontWeight.Medium)
+	function DropdownModule:LockValues(lockedItems)
+		if not lockedItems then
+			return
+		end
+
+		for _, tab in next, Dropdown.Tabs do
+			if tab and tab.UIElements and tab.UIElements.TabItem then
+				local itemName = tab.Name
+				local isLocked = false
+
+				for _, lockedItem in next, lockedItems do
+					if itemName == lockedItem then
+						isLocked = true
+						break
+					end
+				end
+
+				if isLocked then
+					Tween(tab.UIElements.TabItem, 0.1, { ImageTransparency = 1 }):Play()
+					--Tween(tab.UIElements.TabItem.Highlight, 0.1, { ImageTransparency = 1 }):Play()
+					Tween(tab.UIElements.TabItem.Frame.Title.TextLabel, 0.1, { TextTransparency = 0.6 }):Play()
+					if tab.UIElements.TabIcon then
+						Tween(tab.UIElements.TabIcon.ImageLabel, 0.1, { ImageTransparency = 0.6 }):Play()
+					end
+
+					tab.UIElements.TabItem.Active = false
+					tab.Locked = true
 				else
-					DropdownData.Value = option
-					-- reset all then mark selected
-					for _, f in pairs(ItemFrames) do
-						if f ~= ItemBg then
-							Tween(f, Creator.Anim.Fast, { ImageTransparency = 1 }):Play()
-							if f:FindFirstChild("Hit") then
-								local lbl2 = f.Hit:FindFirstChildOfClass("TextLabel")
-								local chk2 = f.Hit:FindFirstChild("Check")
-								if lbl2 then lbl2.TextTransparency = 0.25; lbl2.FontFace = Font.new(Creator.Font, Enum.FontWeight.Medium) end
-								if chk2 then Tween(chk2, Creator.Anim.Fast, { ImageTransparency = 1 }):Play() end
+					if tab.Selected then
+						Tween(tab.UIElements.TabItem, 0.1, { ImageTransparency = TabBackgroundTransparency }):Play()
+						--Tween(tab.UIElements.TabItem.Highlight, 0.1, { ImageTransparency = 0.75 }):Play()
+						Tween(tab.UIElements.TabItem.Frame.Title.TextLabel, 0.1, { TextTransparency = 0 }):Play()
+						if tab.UIElements.TabIcon then
+							Tween(tab.UIElements.TabIcon.ImageLabel, 0.1, { ImageTransparency = 0 }):Play()
+						end
+					else
+						Tween(tab.UIElements.TabItem, 0.1, { ImageTransparency = 1 }):Play()
+						--Tween(tab.UIElements.TabItem.Highlight, 0.1, { ImageTransparency = 1 }):Play()
+						Tween(
+							tab.UIElements.TabItem.Frame.Title.TextLabel,
+							0.1,
+							{ TextTransparency = Type == "Dropdown" and 0.4 or 0.05 }
+						):Play()
+						if tab.UIElements.TabIcon then
+							Tween(
+								tab.UIElements.TabIcon.ImageLabel,
+								0.1,
+								{ ImageTransparency = Type == "Dropdown" and 0.2 or 0 }
+							):Play()
+						end
+					end
+
+					tab.UIElements.TabItem.Active = true
+					tab.Locked = false
+				end
+			end
+		end
+	end
+
+	function DropdownModule:Refresh(Values)
+		if Config.Window.Destroyed then
+			return
+		end
+
+		for _, Elementt in next, Dropdown.UIElements.Menu.Frame.ScrollingFrame:GetChildren() do
+			if not Elementt:IsA("UIListLayout") then
+				Elementt:Destroy()
+			end
+		end
+
+		Dropdown.Tabs = {}
+
+		if Dropdown.SearchBarEnabled then
+			if not SearchLabel then
+				SearchLabel = CreateInput("Search...", "search", Dropdown.UIElements.Menu, nil, function(val)
+					for _, tab in next, Dropdown.Tabs do
+						if string.find(string.lower(tab.Name), string.lower(val), 1, true) then
+							tab.UIElements.TabItem.Visible = true
+						else
+							tab.UIElements.TabItem.Visible = false
+						end
+						RecalculateListSize()
+						RecalculateCanvasSize()
+					end
+				end, true)
+				SearchLabel.Size = UDim2.new(1, 0, 0, Element.SearchBarHeight)
+				SearchLabel.Position = UDim2.new(0, 0, 0, 0)
+				SearchLabel.Name = "SearchBar"
+			end
+		end
+
+		for Index, Tab in next, Values do
+			if Tab.Type ~= "Divider" then
+				local TabMain = {
+					Name = typeof(Tab) == "table" and Tab.Title or Tab,
+					Desc = typeof(Tab) == "table" and Tab.Desc or nil,
+					Icon = typeof(Tab) == "table" and Tab.Icon or nil,
+					IconSize = typeof(Tab) == "table" and Tab.IconSize or nil,
+					Original = Tab,
+					Selected = false,
+					Locked = typeof(Tab) == "table" and Tab.Locked or false,
+					UIElements = {},
+				}
+				local TabIcon
+				if TabMain.Icon then
+					TabIcon = Creator.Image(TabMain.Icon, TabMain.Icon, 0, Config.Window.Folder, "Dropdown", true)
+					TabIcon.Size =
+						UDim2.new(0, TabMain.IconSize or Element.TabIcon, 0, TabMain.IconSize or Element.TabIcon)
+					TabIcon.ImageLabel.ImageTransparency = Type == "Dropdown" and 0.2 or 0
+					TabMain.UIElements.TabIcon = TabIcon
+				end
+				TabMain.UIElements.TabItem = Creator.NewRoundFrame(
+					Element.MenuCorner - Element.MenuPadding,
+					"Squircle",
+					{
+						Size = UDim2.new(1, 0, 0, 36),
+						AutomaticSize = TabMain.Desc and "Y",
+						ImageTransparency = 1, -- 0
+						Parent = Dropdown.UIElements.Menu.Frame.ScrollingFrame,
+						--ImageColor3 = Color3.new(1, 1, 1),
+						ThemeTag = {
+							ImageColor3 = "DropdownTabBackground",
+						},
+						Active = not TabMain.Locked,
+					},
+					{
+						Creator.NewRoundFrame(Element.MenuCorner - Element.MenuPadding, "Glass-1.4", {
+							Size = UDim2.new(1, 0, 1, 0),
+							ThemeTag = {
+								ImageColor3 = "DropdownTabBorder",
+							},
+							ImageTransparency = 1, -- .75
+							Name = "Highlight",
+						}, {
+							-- New("UIGradient", {
+							--     Rotation = 80,
+							--     Color = ColorSequence.new({
+							--         ColorSequenceKeypoint.new(0.0, Color3.fromRGB(255, 255, 255)),
+							--         ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+							--         ColorSequenceKeypoint.new(1.0, Color3.fromRGB(255, 255, 255)),
+							--     }),
+							--     Transparency = NumberSequence.new({
+							--         NumberSequenceKeypoint.new(0.0, 0.1),
+							--         NumberSequenceKeypoint.new(0.5, 1),
+							--         NumberSequenceKeypoint.new(1.0, 0.1),
+							--     })
+							-- }),
+						}),
+						New("Frame", {
+							Size = UDim2.new(1, 0, 1, 0),
+							BackgroundTransparency = 1,
+						}, {
+							New("UIListLayout", {
+								Padding = UDim.new(0, Element.TabPadding),
+								FillDirection = "Horizontal",
+								VerticalAlignment = "Center",
+							}),
+							New("UIPadding", {
+								PaddingTop = UDim.new(0, Element.TabPadding),
+								PaddingLeft = UDim.new(0, Element.TabPadding),
+								PaddingRight = UDim.new(0, Element.TabPadding),
+								PaddingBottom = UDim.new(0, Element.TabPadding),
+							}),
+							New("UICorner", {
+								CornerRadius = UDim.new(0, Element.MenuCorner - Element.MenuPadding),
+							}),
+							TabIcon,
+							New("Frame", {
+								Size = UDim2.new(1, TabIcon and -Element.TabPadding - Element.TabIcon or 0, 0, 0),
+								BackgroundTransparency = 1,
+								AutomaticSize = "Y",
+								Name = "Title",
+							}, {
+								New("TextLabel", {
+									Text = TabMain.Name,
+									TextXAlignment = "Left",
+									FontFace = Font.new(Creator.Font, Enum.FontWeight.Medium),
+									ThemeTag = {
+										TextColor3 = "Text",
+										BackgroundColor3 = "Text",
+									},
+									TextSize = 15,
+									BackgroundTransparency = 1,
+									TextTransparency = Type == "Dropdown" and 0.4 or 0.05,
+									LayoutOrder = 999,
+									AutomaticSize = "Y",
+									Size = UDim2.new(1, 0, 0, 0),
+								}),
+								New("TextLabel", {
+									Text = TabMain.Desc or "",
+									TextXAlignment = "Left",
+									FontFace = Font.new(Creator.Font, Enum.FontWeight.Regular),
+									ThemeTag = {
+										TextColor3 = "Text",
+										BackgroundColor3 = "Text",
+									},
+									TextSize = 15,
+									BackgroundTransparency = 1,
+									TextTransparency = Type == "Dropdown" and 0.6 or 0.35,
+									LayoutOrder = 999,
+									AutomaticSize = "Y",
+									TextWrapped = true,
+									Size = UDim2.new(1, 0, 0, 0),
+									Visible = TabMain.Desc and true or false,
+									Name = "Desc",
+								}),
+								New("UIListLayout", {
+									Padding = UDim.new(0, Element.TabPadding / 3),
+									FillDirection = "Vertical",
+								}),
+							}),
+						}),
+					},
+					true
+				)
+
+				if TabMain.Locked then
+					TabMain.UIElements.TabItem.Frame.Title.TextLabel.TextTransparency = 0.6
+					if TabMain.UIElements.TabIcon then
+						TabMain.UIElements.TabIcon.ImageLabel.ImageTransparency = 0.6
+					end
+				end
+
+				if Dropdown.Multi and typeof(Dropdown.Value) == "string" then
+					for _, i in next, Dropdown.Values do
+						if typeof(i) == "table" then
+							if i.Title == Dropdown.Value then
+								Dropdown.Value = { i }
+							end
+						else
+							if i == Dropdown.Value then
+								Dropdown.Value = { Dropdown.Value }
 							end
 						end
 					end
-					Tween(ItemBg, Creator.Anim.Fast, { ImageTransparency = 0.72 }):Play()
-					Tween(CheckMark, Creator.Anim.Fast, { ImageTransparency = 0 }):Play()
-					ItemLabel.TextTransparency = 0.05
-					ItemLabel.FontFace = Font.new(Creator.Font, Enum.FontWeight.SemiBold)
 				end
-				SyncLabel()
-				Creator.SafeCallback(Callback, Multi and DropdownData.Value or DropdownData.Value)
+
+				if Dropdown.Multi then
+					local found = false
+					if typeof(Dropdown.Value) == "table" then
+						for _, item in ipairs(Dropdown.Value) do
+							local itemName = typeof(item) == "table" and item.Title or item
+							if itemName == TabMain.Name then
+								found = true
+								break
+							end
+						end
+					end
+					TabMain.Selected = found
+				else
+					local currentValue = typeof(Dropdown.Value) == "table" and Dropdown.Value.Title or Dropdown.Value
+					TabMain.Selected = currentValue == TabMain.Name
+				end
+
+				if TabMain.Selected and not TabMain.Locked then
+					TabMain.UIElements.TabItem.ImageTransparency = TabBackgroundTransparency
+					--TabMain.UIElements.TabItem.Highlight.ImageTransparency = 0.75
+					TabMain.UIElements.TabItem.Frame.Title.TextLabel.TextTransparency = 0
+					if TabMain.UIElements.TabIcon then
+						TabMain.UIElements.TabIcon.ImageLabel.ImageTransparency = 0
+					end
+				end
+
+				Dropdown.Tabs[Index] = TabMain
+
+				DropdownModule:Display()
+
+				if Type == "Dropdown" then
+					Creator.AddSignal(TabMain.UIElements.TabItem.MouseButton1Click, function()
+						if Dropdown.Locked or TabMain.Locked then
+							return
+						end
+
+						if Dropdown.Multi then
+							if not TabMain.Selected then
+								TabMain.Selected = true
+								Tween(
+									TabMain.UIElements.TabItem,
+									0.1,
+									{ ImageTransparency = TabBackgroundTransparency }
+								):Play()
+								--Tween(TabMain.UIElements.TabItem.Highlight, 0.1, { ImageTransparency = 0.75 }):Play()
+								Tween(TabMain.UIElements.TabItem.Frame.Title.TextLabel, 0.1, { TextTransparency = 0 }):Play()
+								if TabMain.UIElements.TabIcon then
+									Tween(TabMain.UIElements.TabIcon.ImageLabel, 0.1, { ImageTransparency = 0 }):Play()
+								end
+								table.insert(Dropdown.Value, TabMain.Original)
+							else
+								if not Dropdown.AllowNone and #Dropdown.Value == 1 then
+									return
+								end
+								TabMain.Selected = false
+								Tween(TabMain.UIElements.TabItem, 0.1, { ImageTransparency = 1 }):Play()
+								--Tween(TabMain.UIElements.TabItem.Highlight, 0.1, { ImageTransparency = 1 }):Play()
+								Tween(TabMain.UIElements.TabItem.Frame.Title.TextLabel, 0.1, { TextTransparency = 0.4 }):Play()
+								if TabMain.UIElements.TabIcon then
+									Tween(TabMain.UIElements.TabIcon.ImageLabel, 0.1, { ImageTransparency = 0.2 }):Play()
+								end
+
+								for i, v in next, Dropdown.Value do
+									if typeof(v) == "table" and (v.Title == TabMain.Name) or (v == TabMain.Name) then
+										table.remove(Dropdown.Value, i)
+										break
+									end
+								end
+							end
+						else
+							for Index, TabPisun in next, Dropdown.Tabs do
+								Tween(TabPisun.UIElements.TabItem, 0.1, { ImageTransparency = 1 }):Play()
+								--Tween(TabPisun.UIElements.TabItem.Highlight, 0.1, { ImageTransparency = 1 }):Play()
+								Tween(
+									TabPisun.UIElements.TabItem.Frame.Title.TextLabel,
+									0.1,
+									{ TextTransparency = 0.4 }
+								):Play()
+								if TabPisun.UIElements.TabIcon then
+									Tween(TabPisun.UIElements.TabIcon.ImageLabel, 0.1, { ImageTransparency = 0.2 }):Play()
+								end
+								TabPisun.Selected = false
+							end
+							TabMain.Selected = true
+							Tween(TabMain.UIElements.TabItem, 0.1, { ImageTransparency = TabBackgroundTransparency }):Play()
+							--Tween(TabMain.UIElements.TabItem.Highlight, 0.1, { ImageTransparency = 0.75 }):Play()
+							Tween(TabMain.UIElements.TabItem.Frame.Title.TextLabel, 0.1, { TextTransparency = 0 }):Play()
+							if TabMain.UIElements.TabIcon then
+								Tween(TabMain.UIElements.TabIcon.ImageLabel, 0.1, { ImageTransparency = 0 }):Play()
+							end
+							Dropdown.Value = TabMain.Original
+						end
+						Callback()
+					end)
+				elseif Type == "Menu" then
+					if not TabMain.Locked then
+						Creator.AddSignal(TabMain.UIElements.TabItem.MouseEnter, function()
+							Tween(TabMain.UIElements.TabItem, 0.08, { ImageTransparency = TabBackgroundTransparency }):Play()
+						end)
+						Creator.AddSignal(TabMain.UIElements.TabItem.InputEnded, function()
+							Tween(TabMain.UIElements.TabItem, 0.08, { ImageTransparency = 1 }):Play()
+						end)
+					end
+					Creator.AddSignal(TabMain.UIElements.TabItem.MouseButton1Click, function()
+						if Dropdown.Locked or TabMain.Locked then
+							return
+						end
+						Callback(Tab.Callback or function() end)
+					end)
+				end
+
+				RecalculateCanvasSize()
+				RecalculateListSize()
+			else
+				require("../../elements/Divider"):New({ Parent = Dropdown.UIElements.Menu.Frame.ScrollingFrame })
+			end
+		end
+
+		-- local maxWidth = Dropdown.MenuWidth or 0
+		-- if maxWidth == 0 then
+		--     for _, tabmain in next, Dropdown.Tabs do
+		--         if tabmain.UIElements.TabItem.Frame.UIListLayout then
+		--             maxWidth = math.max(maxWidth, tabmain.UIElements.TabItem.Frame.UIListLayout.AbsoluteContentSize.X)
+		--         end
+		--     end
+		-- end
+
+		Dropdown.UIElements.MenuCanvas.Size = UDim2.new(
+			0,
+			Dropdown.MenuWidth + 6 + 6 + 5 + 5 + 18 + 6 + 6,
+			Dropdown.UIElements.MenuCanvas.Size.Y.Scale,
+			Dropdown.UIElements.MenuCanvas.Size.Y.Offset
+		)
+		Callback()
+
+		Dropdown.Values = Values
+	end
+
+	DropdownModule:Refresh(Dropdown.Values)
+
+	function DropdownModule:Select(Items)
+		if Items then
+			Dropdown.Value = Items
+		else
+			if Dropdown.Multi then
+				Dropdown.Value = {}
+			else
+				Dropdown.Value = nil
+			end
+		end
+		DropdownModule:Refresh(Dropdown.Values)
+	end
+
+	RecalculateListSize()
+	RecalculateCanvasSize()
+
+	function DropdownModule:Open()
+		if not Dropdown.Locked then
+			Dropdown.UIElements.Menu.Visible = true
+			Dropdown.UIElements.MenuCanvas.Visible = true
+			Dropdown.UIElements.MenuCanvas.Active = true
+			Dropdown.UIElements.Menu.Size = UDim2.new(1, 0, 0, 0)
+			Tween(Dropdown.UIElements.Menu, 0.1, {
+				Size = UDim2.new(1, 0, 1, 0),
+				ImageTransparency = 0,
+			}, Enum.EasingStyle.Quart, Enum.EasingDirection.Out):Play()
+
+			task.spawn(function()
+				task.wait(0.1)
+				if Dropdown.Locked then
+					return
+				end
+				Dropdown.Opened = true
 			end)
 
-			ItemBg.Parent = ItemList
-			table.insert(ItemFrames, ItemBg)
+			UpdatePosition()
 		end
 	end
 
-	BuildItems()
+	function DropdownModule:Close()
+		Dropdown.Opened = false
 
-	-- Search filter
-	SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-		BuildItems(SearchBox.Text)
-	end)
-
-	-- ── Open / Close popup ───────────────────────────────────────
-	local function CalcPopupH()
-		local count = #ItemFrames
-		return math.clamp(count * (ItemH + 2) + 38 + 14, 42, MaxH)
-	end
-
-	local function OpenPopup()
-		if DropdownData.Opened or DropdownData.Disabled then return end
-		DropdownData.Opened  = true
-		PopupFrame.Visible   = true
-		PopupFrame.ZIndex    = 99
-
-		local targetH = CalcPopupH()
-		Tween(PopupFrame, Creator.Anim.Normal, {
-			Size = UDim2.new(1, 0, 0, targetH),
-		}, Enum.EasingStyle.Quint, Enum.EasingDirection.Out):Play()
-		Tween(PopupFrame, Creator.Anim.Fast, { ImageTransparency = 0.06 }):Play()
-		Tween(ChevLabel, Creator.Anim.Normal, {
-			Rotation = 180, ImageTransparency = 0.15,
-		}):Play()
-	end
-
-	local function ClosePopup()
-		if not DropdownData.Opened then return end
-		DropdownData.Opened = false
-		Tween(PopupFrame, Creator.Anim.Normal, {
+		Tween(Dropdown.UIElements.Menu, 0.25, {
 			Size = UDim2.new(1, 0, 0, 0),
-		}, Enum.EasingStyle.Quint, Enum.EasingDirection.Out):Play()
-		Tween(PopupFrame, Creator.Anim.Fast, { ImageTransparency = 1 }):Play()
-		Tween(ChevLabel, Creator.Anim.Normal, {
-			Rotation = 0, ImageTransparency = 0.45,
-		}):Play()
-		task.delay(Creator.Anim.Normal, function()
-			if not DropdownData.Opened then
-				PopupFrame.Visible = false
-			end
+			ImageTransparency = 1,
+		}, Enum.EasingStyle.Quart, Enum.EasingDirection.Out):Play()
+
+		task.spawn(function()
+			task.wait(0.1)
+			Dropdown.UIElements.Menu.Visible = false
 		end)
-		SearchBox.Text = ""
+
+		task.spawn(function()
+			task.wait(0.25)
+			Dropdown.UIElements.MenuCanvas.Visible = false
+			Dropdown.UIElements.MenuCanvas.Active = false
+		end)
 	end
 
-	Creator.AddSignal(HeaderFrame.HitBox.MouseButton1Click, function()
-		if DropdownData.Opened then ClosePopup() else OpenPopup() end
-	end)
-
-	-- click outside
-	Creator.AddSignal(UserInputService.InputBegan, function(input)
-		if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-		if not DropdownData.Opened then return end
-		local pos    = input.Position
-		local pAbsPos = PopupFrame.AbsolutePosition
-		local pAbsSz  = PopupFrame.AbsoluteSize
-		if pos.X < pAbsPos.X or pos.X > pAbsPos.X + pAbsSz.X
-		or pos.Y < pAbsPos.Y or pos.Y > pAbsPos.Y + pAbsSz.Y then
-			ClosePopup()
+	Creator.AddSignal(
+		(
+			Dropdown.UIElements.Dropdown and Dropdown.UIElements.Dropdown.MouseButton1Click
+			or Dropdown.DropdownFrame.UIElements.Main.MouseButton1Click
+		),
+		function()
+			DropdownModule:Open()
 		end
-	end)
+	)
 
-	-- hover header
-	HeaderFrame.HitBox.MouseEnter:Connect(function()
-		Tween(HeaderFrame, Creator.Anim.Fast, { ImageTransparency = 0.72 }):Play()
-	end)
-	HeaderFrame.HitBox.MouseLeave:Connect(function()
-		Tween(HeaderFrame, Creator.Anim.Fast, { ImageTransparency = 0.84 }):Play()
-	end)
+	Creator.AddSignal(UserInputService.InputBegan, function(Input)
+		if
+			Input.UserInputType == Enum.UserInputType.MouseButton1
+			or Input.UserInputType == Enum.UserInputType.Touch
+		then
+			local menuCanvas = Dropdown.UIElements.MenuCanvas
+			local AbsPos, AbsSize = menuCanvas.AbsolutePosition, menuCanvas.AbsoluteSize
 
-	-- ── Public API ───────────────────────────────────────────────
-	local API = {}
+			local DropdownButton = Dropdown.UIElements.Dropdown or Dropdown.DropdownFrame.UIElements.Main
+			local ButtonAbsPos = DropdownButton.AbsolutePosition
+			local ButtonAbsSize = DropdownButton.AbsoluteSize
 
-	function API:SetOptions(opts)
-		DropdownData.Options = opts or {}
-		BuildItems(SearchBox.Text)
-	end
+			local isClickOnDropdown = Mouse.X >= ButtonAbsPos.X
+				and Mouse.X <= ButtonAbsPos.X + ButtonAbsSize.X
+				and Mouse.Y >= ButtonAbsPos.Y
+				and Mouse.Y <= ButtonAbsPos.Y + ButtonAbsSize.Y
 
-	function API:SetValue(v)
-		if Multi then
-			if type(v) == "table" then
-				DropdownData.Value = {}
-				for _, k in ipairs(v) do DropdownData.Value[k] = true end
+			local isClickOnMenu = Mouse.X >= AbsPos.X
+				and Mouse.X <= AbsPos.X + AbsSize.X
+				and Mouse.Y >= AbsPos.Y
+				and Mouse.Y <= AbsPos.Y + AbsSize.Y
+
+			if Config.Window.CanDropdown and Dropdown.Opened and not isClickOnDropdown and not isClickOnMenu then
+				DropdownModule:Close()
 			end
-		else
-			DropdownData.Value = v
 		end
-		SyncLabel()
-		BuildItems(SearchBox.Text)
-	end
+	end)
 
-	function API:GetValue()
-		return DropdownData.Value
-	end
+	Creator.AddSignal(
+		Dropdown.UIElements.Dropdown and Dropdown.UIElements.Dropdown:GetPropertyChangedSignal("AbsolutePosition")
+			or Dropdown.DropdownFrame.UIElements.Main:GetPropertyChangedSignal("AbsolutePosition"),
+		UpdatePosition
+	)
 
-	function API:SetDisabled(v)
-		DropdownData.Disabled = v
-		Tween(HeaderFrame, Creator.Anim.Normal, {
-			ImageTransparency = v and 0.55 or 0.84,
-		}):Play()
-		Tween(ValueLabel, Creator.Anim.Normal, {
-			TextTransparency = v and 0.6 or (DropdownData.Value ~= nil and 0.15 or 0.5),
-		}):Play()
-	end
-
-	function API:Open()  OpenPopup()  end
-	function API:Close() ClosePopup() end
-
-	DropdownContainer._API = API
-	return DropdownContainer
+	return DropdownModule
 end
 
-return Dropdown
+return DropdownMenu

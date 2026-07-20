@@ -1,140 +1,56 @@
--- ╔══════════════════════════════════════════════════╗
--- ║   Leviathan UI — Paragraph element              ║
--- ║   Title mode · description mode · better type   ║
--- ╚══════════════════════════════════════════════════╝
-local Paragraph = {}
-
 local Creator = require("../modules/Creator")
-local New     = Creator.New
+local New = Creator.New
 
---[[
-  Config:
-    Title       string  — bold heading (optional)
-    Content     string  — body copy
-    Mode        string  — "Title" | "Description" | "Body" (default)
-    MaxWidth    number  — optional max width in px
-]]
+local Element = {}
 
-function Paragraph.New(Config, Parent)
-	local title   = Config.Title   or nil
-	local content = Config.Content or Config.Text or ""
-	local mode    = Config.Mode    or "Body"
+local CreateButton = require("../components/ui/Button").New
 
-	-- ── Mode-specific typography ──────────────────────────────
-	local titleSize, bodySize, bodyWeight, bodyTransp
+function Element:New(ElementConfig)
+	ElementConfig.Hover = false
+	ElementConfig.TextOffset = 0
+	ElementConfig.ParentConfig = ElementConfig
+	ElementConfig.IsButtons = ElementConfig.Buttons and #ElementConfig.Buttons > 0 and true or false
 
-	if mode == "Title" then
-		titleSize  = Creator.Type.TitleLG
-		bodySize   = Creator.Type.BodyMD
-		bodyWeight = Enum.FontWeight.Regular
-		bodyTransp = 0.30
-	elseif mode == "Description" then
-		titleSize  = Creator.Type.BodyLG
-		bodySize   = Creator.Type.BodySM
-		bodyWeight = Enum.FontWeight.Regular
-		bodyTransp = 0.40
-	else  -- Body
-		titleSize  = Creator.Type.TitleMD
-		bodySize   = Creator.Type.BodyMD
-		bodyWeight = Enum.FontWeight.Regular
-		bodyTransp = 0.25
-	end
-
-	-- ── Title row ────────────────────────────────────────────
-	local TitleLabel
-	if title and title ~= "" then
-		TitleLabel = New("TextLabel", {
-			BackgroundTransparency = 1,
-			Size                   = UDim2.new(1, 0, 0, 0),
-			AutomaticSize          = "Y",
-			TextWrapped            = true,
-			TextXAlignment         = "Left",
-			RichText               = true,
-			Text                   = title,
-			TextSize               = titleSize,
-			FontFace               = Font.new(Creator.Font, Enum.FontWeight.Bold),
-			ThemeTag               = { TextColor3 = "Text" },
-			TextTransparency       = 0.05,
-			Name                   = "Title",
-		})
-	end
-
-	-- ── Body text ─────────────────────────────────────────────
-	local BodyLabel = New("TextLabel", {
-		BackgroundTransparency = 1,
-		Size                   = UDim2.new(1, 0, 0, 0),
-		AutomaticSize          = "Y",
-		TextWrapped            = true,
-		TextXAlignment         = "Left",
-		RichText               = true,
-		Text                   = content,
-		TextSize               = bodySize,
-		FontFace               = Font.new(Creator.Font, bodyWeight),
-		ThemeTag               = { TextColor3 = "Text" },
-		TextTransparency       = bodyTransp,
-		LineHeight             = 1.4,
-		Name                   = "Body",
-	})
-
-	-- ── Container ────────────────────────────────────────────
-	local children = {
-		BodyLabel,
-		New("UIListLayout", {
-			FillDirection = "Vertical",
-			Padding       = UDim.new(0, 5),
-			SortOrder     = "LayoutOrder",
-		}),
+	local ParagraphModule = {
+		__type = "Paragraph",
+		Title = ElementConfig.Title or "Paragraph",
+		Desc = ElementConfig.Desc or nil,
+		--Color = ElementConfig.Color,
+		Locked = ElementConfig.Locked or false,
 	}
+	local Paragraph = require("../components/window/Element")(ElementConfig)
 
-	if TitleLabel then
-		table.insert(children, 1, TitleLabel)
-	end
-
-	local Container = New("Frame", {
-		BackgroundTransparency = 1,
-		Size                   = UDim2.new(1, 0, 0, 0),
-		AutomaticSize          = "Y",
-		Parent                 = Parent,
-		Name                   = "Paragraph",
-	}, children)
-
-	-- MaxWidth constraint
-	if Config.MaxWidth then
-		local constraint = New("UISizeConstraint", {
-			MaxSize = Vector2.new(Config.MaxWidth, math.huge),
+	ParagraphModule.ParagraphFrame = Paragraph
+	if ElementConfig.Buttons and #ElementConfig.Buttons > 0 then
+		local ButtonsContainer = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 38),
+			BackgroundTransparency = 1,
+			AutomaticSize = "Y",
+			Parent = Paragraph.UIElements.Container,
+		}, {
+			New("UIListLayout", {
+				Padding = UDim.new(0, 10),
+				FillDirection = "Vertical",
+			}),
 		})
-		constraint.Parent = Container
-	end
 
-	-- ── Public API ────────────────────────────────────────────
-	local API = {}
-
-	function API:SetTitle(text)
-		if TitleLabel then TitleLabel.Text = text end
-	end
-
-	function API:SetContent(text)
-		BodyLabel.Text = text
-	end
-
-	function API:SetMode(newMode)
-		if newMode == "Title" then
-			if TitleLabel then TitleLabel.TextSize = Creator.Type.TitleLG end
-			BodyLabel.TextSize        = Creator.Type.BodyMD
-			BodyLabel.TextTransparency = 0.30
-		elseif newMode == "Description" then
-			if TitleLabel then TitleLabel.TextSize = Creator.Type.BodyLG end
-			BodyLabel.TextSize        = Creator.Type.BodySM
-			BodyLabel.TextTransparency = 0.40
-		else
-			if TitleLabel then TitleLabel.TextSize = Creator.Type.TitleMD end
-			BodyLabel.TextSize        = Creator.Type.BodyMD
-			BodyLabel.TextTransparency = 0.25
+		for _, Button in next, ElementConfig.Buttons do
+			local ButtonFrame = CreateButton(
+				Button.Title,
+				Button.Icon,
+				Button.Callback,
+				Button.Variant or "White",
+				ButtonsContainer,
+				nil,
+				nil,
+				ElementConfig.Window.NewElements and 999 or 10
+			)
+			ButtonFrame.Size = UDim2.new(1, 0, 0, 38)
+			--ButtonFrame.AutomaticSize = "X"
 		end
 	end
 
-	Container._API = API
-	return Container
+	return ParagraphModule.__type, ParagraphModule
 end
 
-return Paragraph
+return Element

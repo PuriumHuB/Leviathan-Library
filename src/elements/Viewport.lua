@@ -1,223 +1,236 @@
--- ╔══════════════════════════════════════════════════╗
--- ║   Leviathan UI — Viewport element               ║
--- ║   Camera fit · auto center · auto rotate ·      ║
--- ║   loading fallback                              ║
--- ╚══════════════════════════════════════════════════╝
-local Viewport = {}
+local cloneref = (cloneref or clonereference or function(instance)
+	return instance
+end)
 
-local Creator    = require("../modules/Creator")
-local New        = Creator.New
-local Tween      = Creator.Tween
+local UserInputService = cloneref(game:GetService("UserInputService"))
 
-local cloneref   = (cloneref or clonereference or function(i) return i end)
-local RunService = cloneref(game:GetService("RunService"))
+local Creator = require("../modules/Creator")
+local New = Creator.New
 
--- ── Compute model bounding sphere ───────────────────────────
-local function ModelBounds(model)
-	local parts = {}
-	for _, d in ipairs(model:GetDescendants()) do
-		if d:IsA("BasePart") then
-			table.insert(parts, d)
-		end
-	end
-	if #parts == 0 then
-		local cf = model:IsA("Model") and model:GetPivot() or CFrame.new()
-		return cf.Position, 2
-	end
+local Element = {}
 
-	local minX, minY, minZ =  math.huge,  math.huge,  math.huge
-	local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
+type ConfigType = {
+	Object: Instance,
+	Camera: Instance?,
+	Interactive: boolean?,
+	Height: number?,
+	Focused: boolean,
 
-	for _, p in ipairs(parts) do
-		local pos  = p.Position
-		local half = p.Size / 2
-		minX = math.min(minX, pos.X - half.X)
-		minY = math.min(minY, pos.Y - half.Y)
-		minZ = math.min(minZ, pos.Z - half.Z)
-		maxX = math.max(maxX, pos.X + half.X)
-		maxY = math.max(maxY, pos.Y + half.Y)
-		maxZ = math.max(maxZ, pos.Z + half.Z)
-	end
+	Window: any, -- later
+	WindUI: any, -- later
+	Tab: any, -- later
+	Parent: Instance,
+}
 
-	local center = Vector3.new(
-		(minX + maxX) / 2,
-		(minY + maxY) / 2,
-		(minZ + maxZ) / 2
-	)
-	local radius = (Vector3.new(maxX, maxY, maxZ) - center).Magnitude
+function Element:New(Config: ConfigType)
+	local Viewport = {
+		__type = "Viewport",
+		Object = Config.Object,
+		Camera = Config.Camera or Instance.new("Camera"),
+		Interactive = Config.Interactive or false,
+		Height = Config.Height or 200,
+		Focused = Config.Focused ~= false,
+	}
 
-	return center, math.max(radius, 0.5)
-end
+	local Dragging = false
+	local Pinching = false
+	local LastMousePos, LastPinchDist = nil, 0
 
--- ── Fit camera to model ──────────────────────────────────────
-local function FitCamera(vp, model, fovDeg, yOffset)
-	local center, radius = ModelBounds(model)
-	fovDeg  = fovDeg  or 35
-	yOffset = yOffset or 0
-
-	local fovRad  = math.rad(fovDeg)
-	local dist    = radius / math.tan(fovRad / 2) * 1.15  -- 15% padding
-
-	local camPos  = center + Vector3.new(0, radius * 0.25 + yOffset, -dist)
-	vp.CurrentCamera.CFrame = CFrame.lookAt(camPos, center + Vector3.new(0, yOffset, 0))
-	vp.CurrentCamera.FieldOfView = fovDeg
-end
-
--- ── New ──────────────────────────────────────────────────────
-function Viewport.New(Config, Parent)
-	local vpWidth  = Config.Width    or 100
-	local vpHeight = Config.Height   or 100
-	local vpR      = Config.Radius   or Creator.Radius.M
-	local fov      = Config.FOV      or 35
-	local autoRot  = Config.AutoRotate ~= false
-	local rotSpeed = Config.RotateSpeed or 30    -- degrees/sec
-	local yOffset  = Config.YOffset  or 0
-	local lightDir = Config.LightDirection or Vector3.new(-1, -2, -1)
-
-	-- ── Loading skeleton ──────────────────────────────────────
-	local LoadingFrame = New("Frame", {
-		Size                   = UDim2.new(1, 0, 1, 0),
-		BackgroundTransparency = 1,
-		Name                   = "Loading",
-		Visible                = true,
+	local Main = Creator.NewRoundFrame(Config.Window.ElementConfig.UICorner, "Squircle", {
+		Size = UDim2.new(1, 0, 0, Viewport.Height),
+		Parent = Config.Parent,
+		ThemeTag = {
+			ImageColor3 = "ViewportBackground",
+			ImageTransparency = "ViewportBackgroundTransparency",
+		},
 	}, {
-		New("UICorner", { CornerRadius = UDim.new(0, vpR) }),
-		-- shimmer bar
-		New("Frame", {
-			AnchorPoint            = Vector2.new(0.5, 0.5),
-			Position               = UDim2.new(0.5, 0, 0.5, 0),
-			Size                   = UDim2.new(0.45, 0, 0, 3),
-			BackgroundTransparency = 0.6,
-			ThemeTag               = { BackgroundColor3 = "Outline" },
+		New("CanvasGroup", {
+			Size = UDim2.new(1, 0, 1, 0),
+			BackgroundTransparency = 1,
 		}, {
-			New("UICorner", { CornerRadius = UDim.new(0, 999) }),
+			New("UICorner", {
+				CornerRadius = UDim.new(0, Config.Window.ElementConfig.UICorner),
+			}),
+			New("ViewportFrame", {
+				Name = "Viewport",
+				Size = UDim2.new(1, 0, 1, 0),
+				BackgroundTransparency = 1,
+				CurrentCamera = Viewport.Camera,
+				Active = Viewport.Interactive,
+			}, {
+				Viewport.Object,
+			}),
 		}),
 	})
 
-	-- ── Viewport frame ────────────────────────────────────────
-	local VPF = New("ViewportFrame", {
-		Size                   = UDim2.new(1, 0, 1, 0),
-		BackgroundTransparency = 1,
-		LightColor             = Color3.new(1, 1, 1),
-		LightDirection         = lightDir,
-		ImageTransparency      = 1,  -- fade in after load
-		Name                   = "VP",
-	})
+	local function IsTouchInsideViewport(Position)
+		local AbsPos = Main.CanvasGroup.Viewport.AbsolutePosition
+		local Size = Main.CanvasGroup.Viewport.AbsoluteSize
 
-	-- Soft corner mask
-	local Mask = Creator.NewRoundFrame(vpR, "Squircle", {
-		Size              = UDim2.new(1, 0, 1, 0),
-		ImageColor3       = Color3.new(0, 0, 0),
-		ImageTransparency = 1,
-		ZIndex            = 10,
-	})
+		return Position.X >= AbsPos.X
+			and Position.X <= AbsPos.X + Size.X
+			and Position.Y >= AbsPos.Y
+			and Position.Y <= AbsPos.Y + Size.Y
+	end
 
-	local Container = New("Frame", {
-		Size                   = UDim2.new(0, vpWidth, 0, vpHeight),
-		BackgroundTransparency = 1,
-		ClipsDescendants       = true,
-		Parent                 = Parent,
-		Name                   = "Viewport",
-	}, {
-		Creator.NewRoundFrame(vpR, "Squircle", {
-			Size              = UDim2.new(1, 0, 1, 0),
-			ThemeTag          = { ImageColor3 = "ElementBackground" },
-			ImageTransparency = 0.75,
-		}),
-		LoadingFrame,
-		VPF,
-		Mask,
-	})
+	local CurInput = Config.WindUI.GenerateGUID()
 
-	-- Add UICorner to clip children natively
-	New("UICorner", { CornerRadius = UDim.new(0, vpR) }).Parent = Container
-
-	-- ── Camera setup ──────────────────────────────────────────
-	local Cam = Instance.new("Camera")
-	Cam.Parent          = VPF
-	VPF.CurrentCamera   = Cam
-
-	-- ── Load model / instance ─────────────────────────────────
-	local _rotConn
-	local _model
-
-	local API = {}
-
-	function API:Load(instance)
-		if not instance then return end
-
-		-- clear previous
-		if _rotConn then _rotConn:Disconnect(); _rotConn = nil end
-		for _, c in ipairs(VPF:GetChildren()) do
-			if c ~= Cam then c:Destroy() end
+	Creator.AddSignal(Main.CanvasGroup.Viewport.MouseEnter, function()
+		if Viewport.Interactive then
+			Config.Tab.UIElements.ContainerFrame.ScrollingEnabled = false
 		end
+	end)
 
-		-- clone into viewport
-		_model = instance:Clone()
-		_model.Parent = VPF
+	Creator.AddSignal(Main.CanvasGroup.Viewport.InputEnded, function(Input)
+		if
+			Input.UserInputType == Enum.UserInputType.MouseMovement
+			or Input.UserInputType == Enum.UserInputType.Touch
+		then
+			Config.Tab.UIElements.ContainerFrame.ScrollingEnabled = true
+		end
+	end)
 
-		-- wait a frame for AbsoluteSize etc.
-		task.spawn(function()
-			task.wait()
-			FitCamera(VPF, _model, fov, yOffset)
+	Creator.AddSignal(Main.CanvasGroup.Viewport.InputBegan, function(Input)
+		if Viewport.Interactive then
+			if
+				(Input.UserInputType == Enum.UserInputType.MouseButton1)
+				or (Input.UserInputType == Enum.UserInputType.Touch and not Pinching)
+			then
+				if Config.WindUI.CurrentInput and Config.WindUI.CurrentInput ~= CurInput then
+					return
+				end
 
-			-- fade in
-			LoadingFrame.Visible = false
-			Tween(VPF, Creator.Anim.Normal, { ImageTransparency = 0 }):Play()
+				Config.WindUI.CurrentInput = CurInput
 
-			-- auto rotation pivot node
-			local pivotModel = _model:IsA("Model") and _model
-				or (function()
-					local m = Instance.new("Model")
-					_model.Parent = m
-					m.Parent = VPF
-					return m
-				end)()
-
-			if autoRot then
-				local center, _ = ModelBounds(pivotModel)
-				local angle = 0
-				_rotConn = RunService.RenderStepped:Connect(function(dt)
-					angle = angle + dt * rotSpeed
-					if pivotModel and pivotModel.Parent then
-						pivotModel:PivotTo(
-							CFrame.new(center)
-							* CFrame.Angles(0, math.rad(angle), 0)
-							* CFrame.new(-center)
-						)
-					end
-				end)
+				Dragging = true
+				LastMousePos = Input.Position
 			end
-		end)
+		end
+	end)
+
+	Creator.AddSignal(UserInputService.InputEnded, function(Input)
+		if Viewport.Interactive then
+			if
+				Input.UserInputType == Enum.UserInputType.MouseButton1
+				or Input.UserInputType == Enum.UserInputType.Touch
+			then
+				if Config.WindUI.CurrentInput and Config.WindUI.CurrentInput ~= CurInput then
+					return
+				end
+
+				Config.WindUI.CurrentInput = nil
+
+				Dragging = false
+			end
+		end
+	end)
+
+	Creator.AddSignal(UserInputService.InputChanged, function(Input)
+		if Viewport.Interactive and Dragging and not Pinching then
+			if
+				Input.UserInputType == Enum.UserInputType.MouseMovement
+				or Input.UserInputType == Enum.UserInputType.Touch
+			then
+				local MouseDelta = Input.Position - LastMousePos
+				LastMousePos = Input.Position
+
+				local Position = Viewport.Object:GetPivot().Position
+				local Camera = Viewport.Camera
+
+				local RotationY = CFrame.fromAxisAngle(Vector3.new(0, 1, 0), -MouseDelta.X * 0.02)
+				Camera.CFrame = CFrame.new(Position) * RotationY * CFrame.new(-Position) * Camera.CFrame
+
+				local RotationX = CFrame.fromAxisAngle(Camera.CFrame.RightVector, -MouseDelta.Y * 0.02)
+				local PitchedCFrame = CFrame.new(Position) * RotationX * CFrame.new(-Position) * Camera.CFrame
+
+				if PitchedCFrame.UpVector.Y > 0.1 then
+					Camera.CFrame = PitchedCFrame
+				end
+			end
+		end
+	end)
+
+	Creator.AddSignal(Main.CanvasGroup.Viewport.InputChanged, function(Input)
+		if Viewport.Interactive then
+			if Input.UserInputType == Enum.UserInputType.MouseWheel then
+				local ZoomAmount = Input.Position.Z * 2
+				Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * ZoomAmount
+			end
+		end
+	end)
+
+	Creator.AddSignal(UserInputService.TouchPinch, function(touchPositions, scale, velocity, state)
+		if not IsTouchInsideViewport(touchPositions[1]) or not IsTouchInsideViewport(touchPositions[2]) then
+			return
+		end
+		if Viewport.Interactive then
+			if state == Enum.UserInputState.Begin then
+				Pinching = true
+				Dragging = false
+				LastPinchDist = (touchPositions[1] - touchPositions[2]).Magnitude
+			elseif state == Enum.UserInputState.Change then
+				if Pinching then
+					local currentDist = (touchPositions[1] - touchPositions[2]).Magnitude
+					local delta = (currentDist - LastPinchDist) * 0.03
+					LastPinchDist = currentDist
+					Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * delta
+				end
+			elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
+				Pinching = false
+			end
+		end
+	end)
+
+	local function FocusCamera()
+		local ModelSize = Viewport.Object:IsA("BasePart") and Viewport.Object.Size
+			or select(2, Viewport.Object:GetBoundingBox(0))
+		local MaxExtent = math.max(ModelSize.X, ModelSize.Y, ModelSize.Z)
+		local CameraDistance = MaxExtent * 2
+		local ModelPosition = Viewport.Object:GetPivot().Position
+
+		Viewport.Camera.CFrame =
+			CFrame.new(ModelPosition + Vector3.new(0, MaxExtent / 2, CameraDistance), ModelPosition)
 	end
 
-	function API:SetRotateSpeed(speed)
-		rotSpeed = speed
+	if Viewport.Focused then
+		FocusCamera()
 	end
 
-	function API:SetAutoRotate(v)
-		autoRot = v
-		if not v and _rotConn then
-			_rotConn:Disconnect()
-			_rotConn = nil
+	function Viewport:SetObject(Object, IsClone)
+		if IsClone then
+			Object = Object:Clone()
+		end
+		if Viewport.Object then
+			Viewport.Object:Destroy()
+		end
+
+		Viewport.Object = Object
+		Viewport.Object.Parent = Main.CanvasGroup.Viewport
+	end
+
+	function Viewport:SetHeight(Height)
+		Main.Size = UDim2.new(1, 0, 0, Height)
+	end
+
+	function Viewport:Focus()
+		if Viewport.Object then
+			FocusCamera()
 		end
 	end
 
-	function API:FitCamera()
-		if _model then FitCamera(VPF, _model, fov, yOffset) end
+	function Viewport:SetCamera(Camera)
+		Viewport.Camera = Camera
+		Main.CanvasGroup.Viewport.CurrentCamera = Camera
 	end
 
-	function API:GetViewportFrame()
-		return VPF
+	function Viewport:SetInteractive(Interactive)
+		Viewport.Interactive = Interactive
+		Main.CanvasGroup.Viewport.Active = Interactive
 	end
 
-	-- auto-load from Config
-	if Config.Model then
-		task.defer(function() API:Load(Config.Model) end)
-	end
+	Viewport.Main = Main
 
-	Container._API = API
-	return Container
+	return Viewport.__type, Viewport
 end
 
-return Viewport
+return Element
