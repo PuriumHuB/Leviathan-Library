@@ -11,9 +11,7 @@
 	Or paste this whole file into your executor.
 ]]
 
-local WindUI = loadstring(game:HttpGet(
-	"https://raw.githubusercontent.com/YourName/LeviathanUI/main/dist/main.lua"
-))()
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/YourName/LeviathanUI/main/dist/main.lua"))()
 
 -- ───────────────────────────────────────────────────────────
 --  Helpers
