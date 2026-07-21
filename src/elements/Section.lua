@@ -123,23 +123,15 @@ function Element:New(Config)
 
 	local GlowBorder
 	if Section.Box and Section.BoxBorder then
-		GlowBorder = Creator.NewRoundFrame(Config.Window.ElementConfig.UICorner - 1, "SquircleOutline", {
-			Size              = UDim2.new(1, 0, 1, 0),
+		GlowBorder = Creator.NewRoundFrame(Config.Window.ElementConfig.UICorner + 1, "SquircleOutline", {
+			-- Slightly larger than card so outline sits outside the rounded corners
+			Size              = UDim2.new(1, 2, 1, 2),
+			AnchorPoint       = Vector2.new(0.5, 0.5),
+			Position          = UDim2.new(0.5, 0, 0.5, 0),
 			ThemeTag          = { ImageColor3 = "SectionBoxBorder" },
-			ImageTransparency = 0.50,   -- visible glow
+			ImageTransparency = 0.28,
 			Name              = "GlowBorder",
-			ZIndex            = 2,
-		}, {
-			-- Gradient makes it look like light hitting the edge
-			New("UIGradient", {
-				Rotation = 135,
-				Transparency = NumberSequence.new({
-					NumberSequenceKeypoint.new(0,   0.0),
-					NumberSequenceKeypoint.new(0.3, 0.5),
-					NumberSequenceKeypoint.new(0.7, 0.5),
-					NumberSequenceKeypoint.new(1,   0.0),
-				}),
-			}),
+			ZIndex            = 3,
 		})
 	end
 

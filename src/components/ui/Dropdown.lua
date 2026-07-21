@@ -100,9 +100,17 @@ function DropdownMenu.New(Config, Dropdown, Element, Type)
 	local function RecalculateListSize()
 		local MaxHeight = Config.WindUI.DropdownGui.AbsoluteSize.Y
 
-		local ContentY = Dropdown.UIElements.UIListLayout.AbsoluteContentSize.Y / Config.UIScale
-		local SearchBarOffset = Dropdown.SearchBarEnabled and (Element.SearchBarHeight + (Element.MenuPadding * 3))
-			or (Element.MenuPadding * 2)
+		-- AbsoluteContentSize includes a trailing Padding gap after the last item.
+		-- Subtract one MenuPadding to remove the phantom space below the last row.
+		local ContentY = math.max(0,
+			Dropdown.UIElements.UIListLayout.AbsoluteContentSize.Y / Config.UIScale
+			- Element.MenuPadding
+		)
+
+		local SearchBarOffset = Dropdown.SearchBarEnabled
+			and (Element.SearchBarHeight + (Element.MenuPadding * 3))
+			or  (Element.MenuPadding * 2)
+
 		local TotalY = ContentY + SearchBarOffset
 
 		if TotalY > MaxHeight then

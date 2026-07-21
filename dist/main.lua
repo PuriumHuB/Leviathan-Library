@@ -1756,19 +1756,22 @@ local d=b.New
 local e=b.Tween
 
 local f={
-Info={Icon="info",Color=Color3.fromHex"#3B82F6"},
-Success={Icon="check-circle-2",Color=Color3.fromHex"#22C55E"},
-Warning={Icon="alert-triangle",Color=Color3.fromHex"#F59E0B"},
-Error={Icon="x-circle",Color=Color3.fromHex"#EF4444"},
+Info={Color=Color3.fromHex"#3B82F6",Icon="info"},
+Success={Color=Color3.fromHex"#22C55E",Icon="check-circle-2"},
+Warning={Color=Color3.fromHex"#F59E0B",Icon="alert-triangle"},
+Error={Color=Color3.fromHex"#EF4444",Icon="x-circle"},
 }
 
 local g={
-Size=UDim2.new(0,300,1,-156),
-SizeLower=UDim2.new(0,300,1,-56),
-UICorner=16,
+
+Size=UDim2.new(0,300,1,-76),
+SizeLower=UDim2.new(0,300,1,-20),
+UICorner=18,
 UIPadding=14,
+MaxVisible=3,
 NotificationIndex=0,
 Notifications={},
+ActiveCount=0,
 }
 
 function g.Init(h)
@@ -1792,7 +1795,9 @@ SortOrder="LayoutOrder",
 VerticalAlignment="Bottom",
 Padding=UDim.new(0,8),
 }),
-d("UIPadding",{PaddingBottom=UDim.new(0,29)}),
+d("UIPadding",{
+PaddingBottom=UDim.new(0,29),
+}),
 })
 
 return i
@@ -1812,7 +1817,6 @@ Icon=h.Icon or nil,
 IconThemed=h.IconThemed,
 Background=h.Background,
 BackgroundImageTransparency=h.BackgroundImageTransparency,
-Type=p,
 Duration=h.Duration~=nil and h.Duration or 5,
 Buttons=h.Buttons or{},
 CanClose=h.CanClose~=false,
@@ -1824,61 +1828,46 @@ g.NotificationIndex=g.NotificationIndex+1
 g.Notifications[g.NotificationIndex]=u
 
 
-local v=d("Frame",{
-Size=UDim2.new(0,3,1,0),
-Position=UDim2.new(0,0,0,0),
-BackgroundColor3=r.Color,
-BackgroundTransparency=0,
-ZIndex=5,
-},{
-d("UICorner",{CornerRadius=UDim.new(0,999)}),
-})
+g.ActiveCount=(g.ActiveCount or 0)+1
+if g.ActiveCount>g.MaxVisible then
 
-
-local x
-do
-local z=b.Icon(r.Icon)
-if z then
-x=d("ImageLabel",{
-Size=UDim2.new(0,16,0,16),
-BackgroundTransparency=1,
-Image=z[1],
-ImageRectSize=z[2].ImageRectSize,
-ImageRectOffset=z[2].ImageRectPosition,
-ImageColor3=r.Color,
-})
+for v=1,g.NotificationIndex-1 do
+local x=g.Notifications[v]
+if x and not x.Closed then
+x:Close()
+break
+end
 end
 end
 
 
-local z
+local v
 if u.Icon then
-z=b.Image(
+v=b.Image(
 u.Icon,
 u.Title..":"..u.Icon,
 0,h.Window,"Notification",u.IconThemed
 )
-z.Size=UDim2.new(0,26,0,26)
+v.Size=UDim2.new(0,26,0,26)
+v.Position=UDim2.new(0,i,0,i)
 end
 
 
-local A
+local x
 if u.CanClose then
-local F=b.Icon"x"
-A=d("ImageButton",{
-Image=F and F[1]or"",
-ImageRectSize=F and F[2].ImageRectSize or Vector2.new(0,0),
-ImageRectOffset=F and F[2].ImageRectPosition or Vector2.new(0,0),
+x=d("ImageButton",{
+Image=b.Icon"x"[1],
+ImageRectSize=b.Icon"x"[2].ImageRectSize,
+ImageRectOffset=b.Icon"x"[2].ImageRectPosition,
 BackgroundTransparency=1,
-Size=UDim2.new(0,14,0,14),
+Size=UDim2.new(0,16,0,16),
 Position=UDim2.new(1,-i,0,i),
 AnchorPoint=Vector2.new(1,0),
 ThemeTag={ImageColor3="Text"},
-ImageTransparency=0.45,
-ZIndex=10,
+ImageTransparency=0.4,
 },{
 d("TextButton",{
-Size=UDim2.new(1,10,1,10),
+Size=UDim2.new(1,8,1,8),
 BackgroundTransparency=1,
 AnchorPoint=Vector2.new(0.5,0.5),
 Position=UDim2.new(0.5,0,0.5,0),
@@ -1888,142 +1877,86 @@ Text="",
 end
 
 
-local F=A and(22)or 0
+local z=b.NewRoundFrame(m,"Squircle",{
+Size=UDim2.new(0,0,1,0),
 
-local G={}
-if x then table.insert(G,x)end
-table.insert(G,d("TextLabel",{
-AutomaticSize="Y",
-Size=UDim2.new(1,-F,0,0),
-TextWrapped=true,
-TextXAlignment="Left",
-RichText=true,
+ImageColor3=r.Color,
+ImageTransparency=0.45,
+})
+
+
+local A=d("Frame",{
+Size=UDim2.new(0,3,1,-(i*2)),
+Position=UDim2.new(0,6,0,i),
+BackgroundColor3=r.Color,
+BackgroundTransparency=0.15,
+ZIndex=5,
+},{
+d("UICorner",{CornerRadius=UDim.new(0,999)}),
+})
+
+
+local F=d("Frame",{
+Size=UDim2.new(1,u.Icon and-28-i or 0,1,0),
+Position=UDim2.new(1,0,0,0),
+AnchorPoint=Vector2.new(1,0),
 BackgroundTransparency=1,
-TextSize=15,
-ThemeTag={
-TextColor3="NotificationTitle",
-TextTransparency="NotificationTitleTransparency",
-},
-Text=u.Title,
-FontFace=Font.new(b.Font,Enum.FontWeight.SemiBold),
-Name="Title",
-}))
-table.insert(G,d("UIListLayout",{
-FillDirection="Horizontal",
-VerticalAlignment="Center",
-Padding=UDim.new(0,6),
-}))
-
-local H=d("Frame",{
-Size=UDim2.new(1,0,0,0),
 AutomaticSize="Y",
-BackgroundTransparency=1,
-},G)
-
-
-local J={
+},{
 d("UIPadding",{
 PaddingTop=UDim.new(0,i),
 PaddingLeft=UDim.new(0,i+3+6),
 PaddingRight=UDim.new(0,i),
 PaddingBottom=UDim.new(0,i),
 }),
-d("UIListLayout",{
-FillDirection="Vertical",
-Padding=UDim.new(0,6),
-SortOrder="LayoutOrder",
+d("TextLabel",{
+AutomaticSize="Y",
+Size=UDim2.new(1,x and(-30-i)or 0,0,0),
+TextWrapped=true,
+TextXAlignment="Left",
+RichText=true,
+BackgroundTransparency=1,
+TextSize=18,
+ThemeTag={
+TextColor3="NotificationTitle",
+TextTransparency="NotificationTitleTransparency",
+},
+Text=u.Title,
+FontFace=Font.new(b.Font,Enum.FontWeight.SemiBold),
 }),
-H,
-}
+d("UIListLayout",{
+Padding=UDim.new(0,i/3),
+}),
+})
 
 if u.Content then
-table.insert(J,d("TextLabel",{
+d("TextLabel",{
 AutomaticSize="Y",
 Size=UDim2.new(1,0,0,0),
 TextWrapped=true,
 TextXAlignment="Left",
 RichText=true,
 BackgroundTransparency=1,
-TextSize=13,
+TextSize=15,
 ThemeTag={
 TextColor3="NotificationContent",
 TextTransparency="NotificationContentTransparency",
 },
 Text=u.Content,
 FontFace=Font.new(b.Font,Enum.FontWeight.Medium),
-LayoutOrder=1,
-}))
+Parent=F,
+})
 end
 
-local L=d("Frame",{
-Size=UDim2.new(1,z and-(26+i+4)or 0,0,0),
-Position=UDim2.new(1,0,0,0),
-AnchorPoint=Vector2.new(1,0),
-AutomaticSize="Y",
-BackgroundTransparency=1,
-LayoutOrder=1,
-},J)
 
-
-
-
-
-local M=d("Frame",{
-Size=UDim2.new(1,0,1,0),
-BackgroundTransparency=0,
-BackgroundColor3=r.Color,
-Name="Bar",
-},{
-d("UICorner",{CornerRadius=UDim.new(0,4)}),
-d("UIGradient",{
-Transparency=NumberSequence.new{
-NumberSequenceKeypoint.new(0,0.30),
-NumberSequenceKeypoint.new(0.5,0.10),
-NumberSequenceKeypoint.new(1,0.30),
-},
-}),
-})
-
-
-local N=d("Frame",{
-Size=UDim2.new(1,0,0,5),
-BackgroundTransparency=1,
-ClipsDescendants=true,
-LayoutOrder=99,
-Name="DurationClip",
-},{
-M,
-})
-
-
-
-
-
-local O=d("Frame",{
-Size=UDim2.new(1,0,0,0),
-AutomaticSize="Y",
-BackgroundTransparency=1,
-Name="Inner",
-},{
-d("UIListLayout",{
-FillDirection="Vertical",
-SortOrder="LayoutOrder",
-Padding=UDim.new(0,0),
-}),
-L,
-N,
-})
-
-local P=b.NewRoundFrame(m,"Squircle",{
+local G=b.NewRoundFrame(m,"Squircle",{
 Size=UDim2.new(1,0,0,0),
 Position=UDim2.new(2,0,1,0),
 AnchorPoint=Vector2.new(0,1),
 AutomaticSize="Y",
-ImageTransparency=0.08,
-ClipsDescendants=false,
+ImageTransparency=0.05,
 ThemeTag={ImageColor3="Notification"},
 },{
-
 b.NewRoundFrame(m,"Squircle",{
 Size=UDim2.new(1,0,1,0),
 ThemeTag={
@@ -2032,6 +1965,19 @@ ImageTransparency="Notification2Transparency",
 },
 }),
 
+d("Frame",{
+Size=UDim2.new(1,0,1,0),
+BackgroundTransparency=1,
+Name="DurationFrame",
+},{
+d("Frame",{
+Size=UDim2.new(1,0,1,0),
+BackgroundTransparency=1,
+ClipsDescendants=true,
+},{
+z,
+}),
+}),
 d("ImageLabel",{
 Name="Background",
 Image=u.Background or"",
@@ -2042,62 +1988,53 @@ ImageTransparency=u.BackgroundImageTransparency or 1,
 },{
 d("UICorner",{CornerRadius=UDim.new(0,m)}),
 }),
-v,
-O,
-z,
 A,
+F,
+v,
+x,
 })
 
-local Q=d("Frame",{
+local H=d("Frame",{
 BackgroundTransparency=1,
 Size=UDim2.new(1,0,0,0),
 Parent=h.Holder,
-},{P})
+},{G})
 
-
-function u.Close(R)
+function u.Close(J)
 if u.Closed then return end
 u.Closed=true
-e(Q,0.40,{Size=UDim2.new(1,0,0,-6)},
+g.ActiveCount=math.max(0,(g.ActiveCount or 1)-1)
+e(H,0.45,{Size=UDim2.new(1,0,0,-8)},
 Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-e(P,0.48,{Position=UDim2.new(2,0,1,0)},
+e(G,0.55,{Position=UDim2.new(2,0,1,0)},
 Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-task.wait(0.48)
-if Q and Q.Parent then Q:Destroy()end
+task.wait(0.45)
+if H and H.Parent then
+H:Destroy()
 end
-
+end
 
 task.spawn(function()
 task.wait()
-local R=P.AbsoluteSize.Y
-e(Q,0.42,{Size=UDim2.new(1,0,0,R)},
+e(H,0.45,{Size=UDim2.new(1,0,0,G.AbsoluteSize.Y)},
 Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-e(P,0.42,{Position=UDim2.new(0,0,1,0)},
+e(G,0.45,{Position=UDim2.new(0,0,1,0)},
 Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
 
 if u.Duration and u.Duration>0 then
-task.wait(0.42)
-if not u.Closed then
 
-local S=N.AbsoluteSize.X
-M.Size=UDim2.new(0,S,1,0)
-e(M,u.Duration,{Size=UDim2.new(0,0,1,0)},
-Enum.EasingStyle.Linear):Play()
+z.Size=UDim2.new(0,G.DurationFrame.AbsoluteSize.X,1,0)
+e(G.DurationFrame.Frame,u.Duration,{
+Size=UDim2.new(0,0,1,0),
+},Enum.EasingStyle.Linear,Enum.EasingDirection.InOut):Play()
 task.wait(u.Duration)
 u:Close()
 end
-end
 end)
 
-if A then
-b.AddSignal(A.TextButton.MouseButton1Click,function()
+if x then
+b.AddSignal(x.TextButton.MouseButton1Click,function()
 u:Close()
-end)
-A.MouseEnter:Connect(function()
-e(A,0.08,{ImageTransparency=0.05}):Play()
-end)
-A.MouseLeave:Connect(function()
-e(A,0.08,{ImageTransparency=0.45}):Play()
 end)
 end
 
@@ -4753,8 +4690,8 @@ ElementBackgroundTransparency=0,
 
 
 
-Leviathan={
-Name="Leviathan",
+LeviathanDeep={
+Name="Leviathan Deep",
 
 Background=aa:Gradient({
 ["0"]={Color=Color3.fromHex"#020818",Transparency=0},
@@ -4894,42 +4831,50 @@ TabBackgroundActiveTransparency=0,
 
 
 
-LeviathanRainbow={
-Name="Leviathan Wave",
+Leviathan={
+Name="Leviathan",
+
+
+
+
 
 
 Background=aa:Gradient({
 ["0"]={Color=Color3.fromHex"#000d1a",Transparency=0},
-["30"]={Color=Color3.fromHex"#001f3f",Transparency=0},
-["60"]={Color=Color3.fromHex"#003366",Transparency=0},
-["100"]={Color=Color3.fromHex"#00152e",Transparency=0},
+["25"]={Color=Color3.fromHex"#0a001a",Transparency=0},
+["50"]={Color=Color3.fromHex"#00101a",Transparency=0},
+["75"]={Color=Color3.fromHex"#0a000d",Transparency=0},
+["100"]={Color=Color3.fromHex"#000d1a",Transparency=0},
 },{Rotation=135}),
 
 
 Accent=aa:Gradient({
-["0"]={Color=Color3.fromHex"#0033cc",Transparency=0},
-["25"]={Color=Color3.fromHex"#0077ff",Transparency=0},
-["50"]={Color=Color3.fromHex"#33aaff",Transparency=0},
-["75"]={Color=Color3.fromHex"#aaddff",Transparency=0},
-["100"]={Color=Color3.fromHex"#00ccdd",Transparency=0},
+["0"]={Color=Color3.fromHex"#0033ff",Transparency=0},
+["20"]={Color=Color3.fromHex"#0088ff",Transparency=0},
+["40"]={Color=Color3.fromHex"#00ccff",Transparency=0},
+["60"]={Color=Color3.fromHex"#aaddff",Transparency=0},
+["80"]={Color=Color3.fromHex"#00aadd",Transparency=0},
+["100"]={Color=Color3.fromHex"#0055ff",Transparency=0},
 },{Rotation=45}),
 
 
 Dialog=aa:Gradient({
 ["0"]={Color=Color3.fromHex"#001433",Transparency=0},
-["100"]={Color=Color3.fromHex"#002255",Transparency=0},
+["50"]={Color=Color3.fromHex"#0a0022",Transparency=0},
+["100"]={Color=Color3.fromHex"#002244",Transparency=0},
 },{Rotation=90}),
 
 
 Text=Color3.fromHex"#ddf0ff",
-Placeholder=Color3.fromHex"#3377aa",
+Placeholder=Color3.fromHex"#3366aa",
 
 
 Button=aa:Gradient({
-["0"]={Color=Color3.fromHex"#0055ff",Transparency=0},
-["33"]={Color=Color3.fromHex"#0099ff",Transparency=0},
-["66"]={Color=Color3.fromHex"#55ccff",Transparency=0},
-["100"]={Color=Color3.fromHex"#00bbcc",Transparency=0},
+["0"]={Color=Color3.fromHex"#0044ff",Transparency=0},
+["25"]={Color=Color3.fromHex"#0088ff",Transparency=0},
+["50"]={Color=Color3.fromHex"#44ccff",Transparency=0},
+["75"]={Color=Color3.fromHex"#88ddff",Transparency=0},
+["100"]={Color=Color3.fromHex"#00aacc",Transparency=0},
 },{Rotation=45}),
 
 
@@ -4937,34 +4882,35 @@ Icon=Color3.fromHex"#66ccff",
 
 
 Toggle=aa:Gradient({
-["0"]={Color=Color3.fromHex"#0099dd",Transparency=0},
-["100"]={Color=Color3.fromHex"#00ddcc",Transparency=0},
+["0"]={Color=Color3.fromHex"#0099ff",Transparency=0},
+["50"]={Color=Color3.fromHex"#00ccdd",Transparency=0},
+["100"]={Color=Color3.fromHex"#00aaff",Transparency=0},
 },{Rotation=45}),
 
 
 Slider=aa:Gradient({
-["0"]={Color=Color3.fromHex"#0044ee",Transparency=0},
+["0"]={Color=Color3.fromHex"#0033ee",Transparency=0},
 ["50"]={Color=Color3.fromHex"#0088ff",Transparency=0},
-["100"]={Color=Color3.fromHex"#88ddff",Transparency=0},
+["100"]={Color=Color3.fromHex"#66ddff",Transparency=0},
 },{Rotation=45}),
 
 Checkbox=Color3.fromHex"#0099ff",
 
 Primary=aa:Gradient({
-["0"]={Color=Color3.fromHex"#0055ff",Transparency=0},
+["0"]={Color=Color3.fromHex"#0044ff",Transparency=0},
 ["100"]={Color=Color3.fromHex"#00aaff",Transparency=0},
 },{Rotation=45}),
 
 
 ElementBackground=aa:Gradient({
 ["0"]={Color=Color3.fromHex"#001022",Transparency=0},
+["50"]={Color=Color3.fromHex"#080018",Transparency=0},
 ["100"]={Color=Color3.fromHex"#002244",Transparency=0},
 },{Rotation=90}),
 ElementBackgroundTransparency=0,
 
 PanelBackground=Color3.fromHex"#000d1a",
 PanelBackgroundTransparency=0,
-
 LabelBackground=Color3.fromHex"#001428",
 LabelBackgroundTransparency=0,
 
@@ -4980,22 +4926,23 @@ TabBackgroundActiveTransparency=0,
 
 
 SectionBoxBorder=aa:Gradient({
-["0"]={Color=Color3.fromHex"#0055ff",Transparency=0},
-["50"]={Color=Color3.fromHex"#00ccff",Transparency=0},
-["100"]={Color=Color3.fromHex"#0055ff",Transparency=0},
+["0"]={Color=Color3.fromHex"#0033ff",Transparency=0},
+["33"]={Color=Color3.fromHex"#00aaff",Transparency=0},
+["66"]={Color=Color3.fromHex"#00ddcc",Transparency=0},
+["100"]={Color=Color3.fromHex"#0033ff",Transparency=0},
 },{Rotation=90}),
 
-
-Outline=Color3.fromHex"#0044aa",
+Outline=Color3.fromHex"#003388",
 
 
 NotificationDuration=aa:Gradient({
-["0"]={Color=Color3.fromHex"#0055ff",Transparency=0},
+["0"]={Color=Color3.fromHex"#0044ff",Transparency=0},
 ["50"]={Color=Color3.fromHex"#00aaff",Transparency=0},
 ["100"]={Color=Color3.fromHex"#00ddcc",Transparency=0},
 },{Rotation=0}),
 NotificationDurationTransparency=0.20,
 },
+
 
 
 
@@ -5353,6 +5300,404 @@ Checkbox=Color3.fromHex"#00ffff",
 ElementBackground=Color3.fromHex"#0a0012",
 ElementBackgroundTransparency=0,
 PanelBackground=Color3.fromHex"#080010",
+PanelBackgroundTransparency=0,
+},
+
+
+
+
+
+
+Sunrise={
+Name="Sunrise",
+Background=aa:Gradient({["0"]={Color=Color3.fromHex"#1a0500",Transparency=0},["100"]={Color=Color3.fromHex"#2a0a00",Transparency=0}},{Rotation=135}),
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#ff6600",Transparency=0},["50"]={Color=Color3.fromHex"#ff9900",Transparency=0},["100"]={Color=Color3.fromHex"#ffcc00",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#2a0d00",
+Text=Color3.fromHex"#fff3e0",
+Placeholder=Color3.fromHex"#aa5522",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#ee5500",Transparency=0},["100"]={Color=Color3.fromHex"#ffaa00",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#ff9933",
+Toggle=Color3.fromHex"#ff7700",
+Slider=Color3.fromHex"#ee6600",
+Checkbox=Color3.fromHex"#ff8800",
+ElementBackground=Color3.fromHex"#1f0a00",
+ElementBackgroundTransparency=0,
+},
+
+
+Jade={
+Name="Jade",
+Background=Color3.fromHex"#040d0a",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#006644",Transparency=0},["100"]={Color=Color3.fromHex"#00aa77",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#061410",
+Text=Color3.fromHex"#d4f5e9",
+Placeholder=Color3.fromHex"#338866",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#005533",Transparency=0},["100"]={Color=Color3.fromHex"#009966",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#00cc88",
+Toggle=Color3.fromHex"#00aa66",
+Slider=Color3.fromHex"#009955",
+Checkbox=Color3.fromHex"#00bb77",
+ElementBackground=Color3.fromHex"#06120e",
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#040d09",
+PanelBackgroundTransparency=0,
+},
+
+
+Flamingo={
+Name="Flamingo",
+Background=Color3.fromHex"#150008",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#cc0066",Transparency=0},["100"]={Color=Color3.fromHex"#ff44aa",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#220010",
+Text=Color3.fromHex"#ffe0f0",
+Placeholder=Color3.fromHex"#883366",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#bb0055",Transparency=0},["100"]={Color=Color3.fromHex"#ee3388",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#ff55aa",
+Toggle=Color3.fromHex"#ff2277",
+Slider=Color3.fromHex"#dd1166",
+Checkbox=Color3.fromHex"#ff3388",
+ElementBackground=Color3.fromHex"#1e0010",
+ElementBackgroundTransparency=0,
+},
+
+
+Steel={
+Name="Steel",
+Background=Color3.fromHex"#0c1018",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#2255aa",Transparency=0},["100"]={Color=Color3.fromHex"#4488cc",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#141a24",
+Text=Color3.fromHex"#ccd8ee",
+Placeholder=Color3.fromHex"#556688",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#1e4488",Transparency=0},["100"]={Color=Color3.fromHex"#3366bb",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#5599dd",
+Toggle=Color3.fromHex"#3377cc",
+Slider=Color3.fromHex"#2266bb",
+Checkbox=Color3.fromHex"#4488cc",
+ElementBackground=Color3.fromHex"#141c28",
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#0e141e",
+PanelBackgroundTransparency=0,
+},
+
+
+Parchment={
+Name="Parchment",
+Background=Color3.fromHex"#f5f0e8",
+Accent=Color3.fromHex"#8b6914",
+Dialog=Color3.fromHex"#ebe5d5",
+Text=Color3.fromHex"#2a1f0a",
+Placeholder=Color3.fromHex"#8a7055",
+Button=Color3.fromHex"#7a5c11",
+Icon=Color3.fromHex"#6b4f0e",
+Toggle=Color3.fromHex"#8b6914",
+Slider=Color3.fromHex"#7a5c11",
+Checkbox=Color3.fromHex"#8b6914",
+PanelBackground=Color3.fromHex"#ede8da",
+PanelBackgroundTransparency=0,
+LabelBackground=Color3.fromHex"#e5dfc8",
+LabelBackgroundTransparency=0,
+ElementBackground=Color3.fromHex"#e0d9c5",
+ElementBackgroundTransparency=0,
+TabBackground=Color3.fromHex"#ede8da",
+TabBackgroundHover=Color3.fromHex"#e5dec8",
+TabBackgroundHoverTransparency=0,
+TabBackgroundActive=Color3.fromHex"#d8d0b5",
+TabBackgroundActiveTransparency=0,
+},
+
+
+Cosmos={
+Name="Cosmos",
+Background=aa:Gradient({["0"]={Color=Color3.fromHex"#000008",Transparency=0},["50"]={Color=Color3.fromHex"#050010",Transparency=0},["100"]={Color=Color3.fromHex"#000005",Transparency=0}},{Rotation=135}),
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#4400cc",Transparency=0},["33"]={Color=Color3.fromHex"#0044ff",Transparency=0},["66"]={Color=Color3.fromHex"#8800ff",Transparency=0},["100"]={Color=Color3.fromHex"#cc00aa",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#08000f",
+Text=Color3.fromHex"#eeddff",
+Placeholder=Color3.fromHex"#554488",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#5500ee",Transparency=0},["100"]={Color=Color3.fromHex"#9900ff",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#aa66ff",
+Toggle=Color3.fromHex"#7733ff",
+Slider=Color3.fromHex"#5500ee",
+Checkbox=Color3.fromHex"#8844ff",
+ElementBackground=aa:Gradient({["0"]={Color=Color3.fromHex"#060010",Transparency=0},["100"]={Color=Color3.fromHex"#0a0018",Transparency=0}},{Rotation=90}),
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#05000c",
+PanelBackgroundTransparency=0,
+},
+
+
+RoseGold={
+Name="Rose Gold",
+Background=Color3.fromHex"#120608",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#b5485a",Transparency=0},["50"]={Color=Color3.fromHex"#c9737a",Transparency=0},["100"]={Color=Color3.fromHex"#d4a0aa",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#1e0c10",
+Text=Color3.fromHex"#fce8ec",
+Placeholder=Color3.fromHex"#886070",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#a03348",Transparency=0},["100"]={Color=Color3.fromHex"#c97080",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#d49090",
+Toggle=Color3.fromHex"#cc5566",
+Slider=Color3.fromHex"#bb4455",
+Checkbox=Color3.fromHex"#cc6677",
+ElementBackground=Color3.fromHex"#1c0c10",
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#150810",
+PanelBackgroundTransparency=0,
+},
+
+
+Lavender={
+Name="Lavender",
+Background=Color3.fromHex"#f5f0ff",
+Accent=Color3.fromHex"#7c5cbf",
+Dialog=Color3.fromHex"#ebe0ff",
+Text=Color3.fromHex"#22103a",
+Placeholder=Color3.fromHex"#8866aa",
+Button=Color3.fromHex"#6a44aa",
+Icon=Color3.fromHex"#5533aa",
+Toggle=Color3.fromHex"#7755cc",
+Slider=Color3.fromHex"#6644bb",
+Checkbox=Color3.fromHex"#7755cc",
+PanelBackground=Color3.fromHex"#ede5ff",
+PanelBackgroundTransparency=0,
+LabelBackground=Color3.fromHex"#e5daff",
+LabelBackgroundTransparency=0,
+ElementBackground=Color3.fromHex"#ddd0ff",
+ElementBackgroundTransparency=0,
+TabBackground=Color3.fromHex"#ede5ff",
+TabBackgroundHover=Color3.fromHex"#e0d5ff",
+TabBackgroundHoverTransparency=0,
+TabBackgroundActive=Color3.fromHex"#cfc0f5",
+TabBackgroundActiveTransparency=0,
+},
+
+
+Toxic={
+Name="Toxic",
+Background=Color3.fromHex"#050a00",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#44dd00",Transparency=0},["100"]={Color=Color3.fromHex"#aaff00",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#081200",
+Text=Color3.fromHex"#eeffcc",
+Placeholder=Color3.fromHex"#557722",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#33bb00",Transparency=0},["100"]={Color=Color3.fromHex"#88ee00",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#88ff22",
+Toggle=Color3.fromHex"#66ee00",
+Slider=Color3.fromHex"#55cc00",
+Checkbox=Color3.fromHex"#77ee00",
+ElementBackground=Color3.fromHex"#081000",
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#060c00",
+PanelBackgroundTransparency=0,
+},
+
+
+Cocoa={
+Name="Cocoa",
+Background=Color3.fromHex"#0d0700",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#5c3317",Transparency=0},["100"]={Color=Color3.fromHex"#8b5a2b",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#160e00",
+Text=Color3.fromHex"#f5e8d8",
+Placeholder=Color3.fromHex"#7a5535",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#4a2810",Transparency=0},["100"]={Color=Color3.fromHex"#7a4a22",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#bb8855",
+Toggle=Color3.fromHex"#996633",
+Slider=Color3.fromHex"#7a5522",
+Checkbox=Color3.fromHex"#aa7744",
+ElementBackground=Color3.fromHex"#150d00",
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#100a00",
+PanelBackgroundTransparency=0,
+},
+
+
+Ink={
+Name="Ink",
+Background=Color3.fromHex"#050810",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#112255",Transparency=0},["100"]={Color=Color3.fromHex"#224488",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#080c1a",
+Text=Color3.fromHex"#c8d8f0",
+Placeholder=Color3.fromHex"#445577",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#0e1e44",Transparency=0},["100"]={Color=Color3.fromHex"#1e3366",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#6688bb",
+Toggle=Color3.fromHex"#3355aa",
+Slider=Color3.fromHex"#224488",
+Checkbox=Color3.fromHex"#3366aa",
+ElementBackground=Color3.fromHex"#080c18",
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#060910",
+PanelBackgroundTransparency=0,
+},
+
+
+Electric={
+Name="Electric",
+Background=Color3.fromHex"#0a0a00",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#cccc00",Transparency=0},["100"]={Color=Color3.fromHex"#ffff00",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#111100",
+Text=Color3.fromHex"#ffffe0",
+Placeholder=Color3.fromHex"#777700",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#aaaa00",Transparency=0},["100"]={Color=Color3.fromHex"#eeee00",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#ffff33",
+Toggle=Color3.fromHex"#dddd00",
+Slider=Color3.fromHex"#cccc00",
+Checkbox=Color3.fromHex"#dddd00",
+ElementBackground=Color3.fromHex"#111100",
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#0c0c00",
+PanelBackgroundTransparency=0,
+},
+
+
+Tron={
+Name="Tron",
+Background=Color3.fromHex"#000c0c",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#007799",Transparency=0},["100"]={Color=Color3.fromHex"#00cccc",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#001414",
+Text=Color3.fromHex"#ccffff",
+Placeholder=Color3.fromHex"#336666",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#006688",Transparency=0},["100"]={Color=Color3.fromHex"#00aaaa",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#00eeee",
+Toggle=Color3.fromHex"#00cccc",
+Slider=Color3.fromHex"#00aaaa",
+Checkbox=Color3.fromHex"#00cccc",
+ElementBackground=Color3.fromHex"#001111",
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#000d0d",
+PanelBackgroundTransparency=0,
+},
+
+
+Blood={
+Name="Blood",
+Background=Color3.fromHex"#080000",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#660000",Transparency=0},["100"]={Color=Color3.fromHex"#aa0000",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#100000",
+Text=Color3.fromHex"#ffdddd",
+Placeholder=Color3.fromHex"#661111",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#550000",Transparency=0},["100"]={Color=Color3.fromHex"#990000",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#dd2222",
+Toggle=Color3.fromHex"#cc1111",
+Slider=Color3.fromHex"#aa0000",
+Checkbox=Color3.fromHex"#cc1111",
+ElementBackground=Color3.fromHex"#0e0000",
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#0a0000",
+PanelBackgroundTransparency=0,
+},
+
+
+Seafoam={
+Name="Seafoam",
+Background=Color3.fromHex"#eefaf5",
+Accent=Color3.fromHex"#2a9d8f",
+Dialog=Color3.fromHex"#d8f0eb",
+Text=Color3.fromHex"#0a2822",
+Placeholder=Color3.fromHex"#558877",
+Button=Color3.fromHex"#219a8c",
+Icon=Color3.fromHex"#1b8a7e",
+Toggle=Color3.fromHex"#2a9d8f",
+Slider=Color3.fromHex"#219a8c",
+Checkbox=Color3.fromHex"#2a9d8f",
+PanelBackground=Color3.fromHex"#e0f5ee",
+PanelBackgroundTransparency=0,
+LabelBackground=Color3.fromHex"#d5efea",
+LabelBackgroundTransparency=0,
+ElementBackground=Color3.fromHex"#c8eae3",
+ElementBackgroundTransparency=0,
+TabBackground=Color3.fromHex"#e0f5ee",
+TabBackgroundHover=Color3.fromHex"#d0ede4",
+TabBackgroundHoverTransparency=0,
+TabBackgroundActive=Color3.fromHex"#b8e0d8",
+TabBackgroundActiveTransparency=0,
+},
+
+
+Monochrome={
+Name="Monochrome",
+Background=Color3.fromHex"#000000",
+Accent=Color3.fromHex"#1a1a1a",
+Dialog=Color3.fromHex"#111111",
+Outline=Color3.fromHex"#333333",
+Text=Color3.fromHex"#ffffff",
+Placeholder=Color3.fromHex"#555555",
+Button=Color3.fromHex"#222222",
+Icon=Color3.fromHex"#aaaaaa",
+Toggle=Color3.fromHex"#ffffff",
+Slider=Color3.fromHex"#888888",
+Checkbox=Color3.fromHex"#aaaaaa",
+Primary=Color3.fromHex"#ffffff",
+PanelBackground=Color3.fromHex"#0d0d0d",
+PanelBackgroundTransparency=0,
+LabelBackground=Color3.fromHex"#000000",
+LabelBackgroundTransparency=0.5,
+ElementBackground=Color3.fromHex"#141414",
+ElementBackgroundTransparency=0,
+TabBackground=Color3.fromHex"#000000",
+TabBackgroundHover=Color3.fromHex"#111111",
+TabBackgroundHoverTransparency=0,
+TabBackgroundActive=Color3.fromHex"#1c1c1c",
+TabBackgroundActiveTransparency=0,
+},
+
+
+Retro={
+Name="Retro",
+Background=Color3.fromHex"#0a0800",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#aa6600",Transparency=0},["100"]={Color=Color3.fromHex"#ffaa00",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#140f00",
+Text=Color3.fromHex"#ffcc66",
+Placeholder=Color3.fromHex"#886622",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#995500",Transparency=0},["100"]={Color=Color3.fromHex"#dd8800",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#ffaa33",
+Toggle=Color3.fromHex"#dd8800",
+Slider=Color3.fromHex"#cc7700",
+Checkbox=Color3.fromHex"#dd9900",
+ElementBackground=Color3.fromHex"#120e00",
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#0d0a00",
+PanelBackgroundTransparency=0,
+},
+
+
+Bubblegum={
+Name="Bubblegum",
+Background=Color3.fromHex"#fff0f8",
+Accent=Color3.fromHex"#ff66cc",
+Dialog=Color3.fromHex"#ffe0f5",
+Text=Color3.fromHex"#440022",
+Placeholder=Color3.fromHex"#cc66aa",
+Button=Color3.fromHex"#ee44bb",
+Icon=Color3.fromHex"#dd33aa",
+Toggle=Color3.fromHex"#ff55cc",
+Slider=Color3.fromHex"#ee44bb",
+Checkbox=Color3.fromHex"#ff66cc",
+PanelBackground=Color3.fromHex"#ffe8f5",
+PanelBackgroundTransparency=0,
+LabelBackground=Color3.fromHex"#ffd5ee",
+LabelBackgroundTransparency=0,
+ElementBackground=Color3.fromHex"#ffd5ee",
+ElementBackgroundTransparency=0,
+TabBackground=Color3.fromHex"#ffe8f5",
+TabBackgroundHover=Color3.fromHex"#ffd5ec",
+TabBackgroundHoverTransparency=0,
+TabBackgroundActive=Color3.fromHex"#ffbfe0",
+TabBackgroundActiveTransparency=0,
+},
+
+
+NightSakura={
+Name="Night Sakura",
+Background=Color3.fromHex"#0d0008",
+Accent=aa:Gradient({["0"]={Color=Color3.fromHex"#880044",Transparency=0},["100"]={Color=Color3.fromHex"#cc3377",Transparency=0}},{Rotation=45}),
+Dialog=Color3.fromHex"#160010",
+Text=Color3.fromHex"#ffe0f0",
+Placeholder=Color3.fromHex"#7a3358",
+Button=aa:Gradient({["0"]={Color=Color3.fromHex"#770033",Transparency=0},["100"]={Color=Color3.fromHex"#bb2266",Transparency=0}},{Rotation=45}),
+Icon=Color3.fromHex"#ff5599",
+Toggle=Color3.fromHex"#ee3377",
+Slider=Color3.fromHex"#cc2266",
+Checkbox=Color3.fromHex"#ee3377",
+ElementBackground=Color3.fromHex"#140010",
+ElementBackgroundTransparency=0,
+PanelBackground=Color3.fromHex"#0e000c",
 PanelBackgroundTransparency=0,
 },
 
@@ -7480,10 +7825,6 @@ end
 
 return ac end function a.F()
 
-
-
-
-
 local aa={}
 
 local ab=a.load'd'
@@ -7521,14 +7862,10 @@ return as,ap.Size,Vector2.new((aq%ap.Cols)*ap.Size.X,math.floor(aq/ap.Cols)*ap.S
 end
 
 local an=12
-local ao=ak and 30 or 20
-local ap=ak and(52)or math.floor(40.8)
-local aq=24
 
-
-local ar
+local ao
 if ag and ag~=""then
-ar=ac("ImageLabel",{
+ao=ac("ImageLabel",{
 Size=UDim2.new(0,13,0,13),
 BackgroundTransparency=1,
 AnchorPoint=Vector2.new(0.5,0.5),
@@ -7541,20 +7878,17 @@ ImageColor3=Color3.new(0,0,0),
 })
 end
 
-
-local as=ac("Frame",{
-Size=UDim2.new(0,2,0,aq+2),
+local ap=ac("Frame",{
+Size=UDim2.new(0,2,0,26),
 BackgroundTransparency=1,
 Parent=ai,
 })
 
-
-local at=ab.NewRoundFrame(an,"Squircle",{
-
-ImageTransparency=0.82,
+local aq=ab.NewRoundFrame(an,"Squircle",{
+ImageTransparency=0.85,
 ThemeTag={ImageColor3="Text"},
-Parent=as,
-Size=UDim2.new(0,ap,0,aq),
+Parent=ap,
+Size=UDim2.new(0,ak and(52)or math.floor(40.8),0,24),
 AnchorPoint=Vector2.new(1,0.5),
 Position=UDim2.new(0,0,0.5,0),
 Name="ToggleFrame",
@@ -7585,13 +7919,12 @@ NumberSequenceKeypoint.new(1,1),
 
 
 ab.NewRoundFrame(an,"Squircle",{
-Size=UDim2.new(0,ao,0,20),
+Size=UDim2.new(0,ak and 30 or 20,0,20),
 Position=UDim2.new(0,2,0.5,0),
 AnchorPoint=Vector2.new(0,0.5),
 ImageTransparency=1,
 Name="Frame",
 },{
-
 ab.NewRoundFrame(an,"Squircle",{
 Size=UDim2.new(1,0,1,0),
 ImageTransparency=0,
@@ -7599,7 +7932,6 @@ AnchorPoint=Vector2.new(0.5,0.5),
 Position=UDim2.new(0.5,0,0.5,0),
 Name="Bar",
 },{
-
 ac("Frame",{
 Size=UDim2.new(1,0,1,0),
 BackgroundColor3=Color3.new(1,1,1),
@@ -7617,11 +7949,13 @@ Position=UDim2.new(0.5,0,0.5,0),
 }),
 
 
+
+
 ab.NewRoundFrame(an,"Squircle",{
 Size=UDim2.new(1,0,1,0),
 Name="GlassBackground",
 ImageTransparency=0,
-ThemeTag={ImageColor3="ElementBackground"},
+ThemeTag={ImageColor3="PanelBackground"},
 ZIndex=-1,
 }),
 
@@ -7644,9 +7978,7 @@ ZIndex=999,
 }),
 }),
 
-ar,
-
-
+ao,
 ac("UIScale",{Scale=1}),
 }),
 }),
@@ -7662,143 +7994,110 @@ Text="",
 }),
 })
 
+local ar=aq.Size.X.Offset
+local as=ak and 30 or 20
+local at,au
 
-local au
-local av
-local aw=ao
-local ax=at.Size.X.Offset
-
-
-function am.Set(ay,az,aA,aB)
-if not aB then
-if az then
-
-ad(at.Frame,0.32,{
-Position=UDim2.new(0,ax-aw-2,0.5,0),
+function am.Set(av,aw,ax,ay)
+if not ay then
+if aw then
+ad(aq.Frame,0.32,{
+Position=UDim2.new(0,ar-as-2,0.5,0),
 },Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
-ab.SetThemeTag(at.Frame.Bar.Highlight.Glass,{ImageColor3="Toggle"},0.15)
-ad(at.Frame.Bar.Highlight.Glass,0.15,
-{ImageTransparency=0},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
 else
-ad(at.Frame,0.32,{
+ad(aq.Frame,0.32,{
 Position=UDim2.new(0,2,0.5,0),
 },Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
-ab.SetThemeTag(at.Frame.Bar.Highlight.Glass,{ImageColor3="Text"},0.15)
-ad(at.Frame.Bar.Highlight.Glass,0.15,
-{ImageTransparency=0.85},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
 end
 else
-if az then
-at.Frame.Position=UDim2.new(0,ax-aw-2,0.5,0)
+aq.Frame.Position=aw
+and UDim2.new(0,ar-as-2,0.5,0)
+or UDim2.new(0,2,0.5,0)
+end
+
+if aw then
+ad(aq.Layer,0.12,{ImageTransparency=0}):Play()
+ab.SetThemeTag(aq.Frame.Bar.Highlight.Glass,{ImageColor3="Toggle"},0.1)
+ad(aq.Frame.Bar.Highlight.Glass,0.1,{ImageTransparency=0}):Play()
+if ao then
+ad(ao,0.1,{ImageTransparency=0}):Play()
+end
 else
-at.Frame.Position=UDim2.new(0,2,0.5,0)
+ad(aq.Layer,0.12,{ImageTransparency=1}):Play()
+ab.SetThemeTag(aq.Frame.Bar.Highlight.Glass,{ImageColor3="Text"},0.1)
+ad(aq.Frame.Bar.Highlight.Glass,0.1,{ImageTransparency=0.85}):Play()
+if ao then
+ad(ao,0.1,{ImageTransparency=1}):Play()
 end
 end
 
-if az then
-ad(at.Layer,0.12,{ImageTransparency=0}):Play()
-ab.SetThemeTag(at.Frame.Bar.Highlight.Glass,{ImageColor3="Toggle"},0.1)
-ad(at.Frame.Bar.Highlight.Glass,0.1,
-{ImageTransparency=0},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-if ar then
-ad(ar,0.1,{ImageTransparency=0}):Play()
+local az,aA,aB=am:GetGlassFrame(aw and 1 or 0)
+aq.Frame.Bar.Highlight.Glass.Image=az
+aq.Frame.Bar.Highlight.Glass.ImageRectSize=aA
+aq.Frame.Bar.Highlight.Glass.ImageRectOffset=aB
+
+if ax~=false and aj then
+task.spawn(function()ab.SafeCallback(aj,aw)end)
 end
-local aC,aD,aE=am:GetGlassFrame(1)
-at.Frame.Bar.Highlight.Glass.Image=aC
-at.Frame.Bar.Highlight.Glass.ImageRectSize=aD
-at.Frame.Bar.Highlight.Glass.ImageRectOffset=aE
-else
-ad(at.Layer,0.12,{ImageTransparency=1}):Play()
-ab.SetThemeTag(at.Frame.Bar.Highlight.Glass,{ImageColor3="Text"},0.1)
-ad(at.Frame.Bar.Highlight.Glass,0.1,
-{ImageTransparency=0.85},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-if ar then
-ad(ar,0.1,{ImageTransparency=1}):Play()
-end
-local aC,aD,aE=am:GetGlassFrame(0)
-at.Frame.Bar.Highlight.Glass.Image=aC
-at.Frame.Bar.Highlight.Glass.ImageRectSize=aD
-at.Frame.Bar.Highlight.Glass.ImageRectOffset=aE
 end
 
-aA=aA~=false
-task.spawn(function()
-if aj and aA then
-ab.SafeCallback(aj,az)
-end
-end)
-end
-
-
-function am.Animate(ay,az,aA)
-if not al.Window.IsToggleDragging then
+function am.Animate(av,aw,ax)
+if al.Window.IsToggleDragging then return end
 al.Window.IsToggleDragging=true
 
-local aB=az.Position.X local aC=
-az.Position.Y
-local aD=at.Frame.Position.X.Offset
-local aE=false
-local aF=false
+local ay=aw.Position.X
+local az=aq.Frame.Position.X.Offset
+local aA=false
 
+ad(aq.Frame.Bar.UIScale,0.28,{Scale=1.5},
+Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
+ad(aq.Frame.Bar.Highlight.BarOverlay,0.28,{ImageTransparency=0.86}):Play()
 
-ad(at.Frame.Bar.UIScale,0.28,
-{Scale=1.5},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-ad(at.Frame.Bar.Highlight.BarOverlay,0.28,
-{ImageTransparency=0.86},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
+if at then at:Disconnect()end
+at=ae.InputChanged:Connect(function(aB)
+if not al.Window.IsToggleDragging then return end
+if aB.UserInputType~=Enum.UserInputType.MouseMovement
+and aB.UserInputType~=Enum.UserInputType.Touch then return end
+
+local aC=aB.Position.X-ay
+if math.abs(aC)>5 then aA=true end
+local aD=math.clamp(az+aC,2,ar-as-2)
+local aE=(aD-2)/math.max(ar-as-4,1)
+
+local aF,aG,b=am:GetGlassFrame(aE)
+aq.Frame.Bar.Highlight.Glass.Image=aF
+aq.Frame.Bar.Highlight.Glass.ImageRectSize=aG
+aq.Frame.Bar.Highlight.Glass.ImageRectOffset=b
+
+ad(aq.Frame,0.10,{Position=UDim2.new(0,aD,0.5,0)},
+Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
+end)
 
 if au then au:Disconnect()end
-au=ae.InputChanged:Connect(function(aG)
+au=ae.InputEnded:Connect(function(aB)
 if not al.Window.IsToggleDragging then return end
-if aG.UserInputType~=Enum.UserInputType.MouseMovement
-and aG.UserInputType~=Enum.UserInputType.Touch then return end
-if aE then return end
-
-local b=math.abs(aG.Position.X-aB)
-if not aF and b>8 then aF=true end
-
-local d=aG.Position.X-aB
-local f=math.max(2,math.min(aD+d,ax-aw-2))
-local g=math.clamp((f-2)/(ax-aw-4),0,1)
-
-local h,i,m=am:GetGlassFrame(g)
-at.Frame.Bar.Highlight.Glass.Image=h
-at.Frame.Bar.Highlight.Glass.ImageRectSize=i
-at.Frame.Bar.Highlight.Glass.ImageRectOffset=m
-
-ad(at.Frame,0.10,{
-Position=UDim2.new(0,f,0.5,0),
-},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-end)
-
-if av then av:Disconnect()end
-av=ae.InputEnded:Connect(function(aG)
-if not al.Window.IsToggleDragging then return end
-if aG.UserInputType~=Enum.UserInputType.MouseButton1
-and aG.UserInputType~=Enum.UserInputType.Touch then return end
+if aB.UserInputType~=Enum.UserInputType.MouseButton1
+and aB.UserInputType~=Enum.UserInputType.Touch then return end
 
 al.Window.IsToggleDragging=false
+if at then at:Disconnect();at=nil end
 if au then au:Disconnect();au=nil end
-if av then av:Disconnect();av=nil end
 al.WindUI.CurrentInput=nil
-if aE then return end
 
-if not aF then
-aA:Set(not aA.Value,true,false)
+ad(aq.Frame.Bar.UIScale,0.24,{Scale=1},
+Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
+ad(aq.Frame.Bar.Highlight.BarOverlay,0.20,{ImageTransparency=0}):Play()
+
+if not aA then
+ax:Set(not ax.Value,true,false)
 else
-local b=at.Frame.Position.X.Offset
-local d=b+aw/2
-aA:Set(d>ax/2,true,false)
+local aC=aq.Frame.Position.X.Offset+as/2
+ax:Set(aC>ar/2,true,false)
 end
-
-ad(at.Frame.Bar.UIScale,0.24,
-{Scale=1},Enum.EasingStyle.Back,Enum.EasingDirection.Out):Play()
-ad(at.Frame.Bar.Highlight.BarOverlay,0.20,
-{ImageTransparency=0},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
 end)
 end
-end
 
-return as,am
+return ap,am
 end
 
 return aa end function a.G()
@@ -9232,9 +9531,17 @@ end
 local function RecalculateListSize()
 local at=ao.WindUI.DropdownGui.AbsoluteSize.Y
 
-local au=ap.UIElements.UIListLayout.AbsoluteContentSize.Y/ao.UIScale
-local av=ap.SearchBarEnabled and(aq.SearchBarHeight+(aq.MenuPadding*3))
+
+
+local au=math.max(0,
+ap.UIElements.UIListLayout.AbsoluteContentSize.Y/ao.UIScale
+-aq.MenuPadding
+)
+
+local av=ap.SearchBarEnabled
+and(aq.SearchBarHeight+(aq.MenuPadding*3))
 or(aq.MenuPadding*2)
+
 local aw=au+av
 
 if aw>at then
@@ -11536,23 +11843,15 @@ end
 
 local at
 if an.Box and an.BoxBorder then
-at=aa.NewRoundFrame(am.Window.ElementConfig.UICorner-1,"SquircleOutline",{
-Size=UDim2.new(1,0,1,0),
-ThemeTag={ImageColor3="SectionBoxBorder"},
-ImageTransparency=0.50,
-Name="GlowBorder",
-ZIndex=2,
-},{
+at=aa.NewRoundFrame(am.Window.ElementConfig.UICorner+1,"SquircleOutline",{
 
-af("UIGradient",{
-Rotation=135,
-Transparency=NumberSequence.new{
-NumberSequenceKeypoint.new(0,0.0),
-NumberSequenceKeypoint.new(0.3,0.5),
-NumberSequenceKeypoint.new(0.7,0.5),
-NumberSequenceKeypoint.new(1,0.0),
-},
-}),
+Size=UDim2.new(1,2,1,2),
+AnchorPoint=Vector2.new(0.5,0.5),
+Position=UDim2.new(0.5,0,0.5,0),
+ThemeTag={ImageColor3="SectionBoxBorder"},
+ImageTransparency=0.28,
+Name="GlowBorder",
+ZIndex=3,
 })
 end
 
