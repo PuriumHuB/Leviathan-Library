@@ -6,9 +6,7 @@
 ╚══════════════════════════════════════════════════════════════╝
 --]]
 
-local WindUI = loadstring(game:HttpGet(
-	"https://raw.githubusercontent.com/YourName/LeviathanUI/main/dist/main.lua"
-))()
+local WindUI = loadstring(game:HttpGet("https://github.com/Leviafish/Leviathan-Library/releases/download/Newest/main.lua"))()
 
 -- ── Shorthand helpers ────────────────────────────────────────
 local UIS   = game:GetService("UserInputService")
