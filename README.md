@@ -37,3 +37,8 @@
     ```luau
     loadstring(game:HttpGet('https://raw.githubusercontent.com/Footagesus/WindUI/refs/heads/main/main_example.lua'))()
     ```
+
+> [!WARNING]
+> Leviathan is currently in Beta.
+> This project is still under active development. Bugs, issues, and unstable features may occur. We’re constantly working on improvements, so please be patient and report any problems you encounter.
+> Leviathan UI Is the fully folk and based on wind. Credit : Footagesus
